@@ -6,7 +6,7 @@ import { join } from 'path';
 let cache: GeoJSON.FeatureCollection | null = null;
 
 function buildNetwork(): GeoJSON.FeatureCollection {
-  const dir = join(process.cwd(), 'src', 'public', 'data');
+  const dir = join(process.cwd(), 'src', 'data');
 
   // ── 1. Parse nodes: col0=nodeId  col6=lng  col7=lat ─────────────────────
   const nodesRaw = readFileSync(join(dir, 'seoul-nodes.csv'), 'utf-8');

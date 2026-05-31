@@ -80,7 +80,7 @@ for (let i = 0; i < allLinkIds.length; i += BATCH) {
 const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
 console.log(`\n✅ 완료! ${active.length}개 활성 링크 (${elapsed}초 소요)\n`);
 
-const outPath = join(ROOT, 'src', 'public', 'data', 'active-links.json');
+const outPath = join(ROOT, 'src', 'data', 'active-links.json');
 writeFileSync(outPath, JSON.stringify({ count: active.length, linkIds: active }, null, 2));
-console.log(`💾 저장: src/public/data/active-links.json`);
+console.log(`💾 저장: src/data/active-links.json`);
 console.log(`   활성: ${active.length}개 / 전체: ${allLinkIds.length}개 (${((active.length/allLinkIds.length)*100).toFixed(1)}%)\n`);

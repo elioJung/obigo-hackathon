@@ -6,7 +6,7 @@ import { join } from 'path';
 function loadActiveLinkIds(): string[] {
   try {
     const raw = readFileSync(
-      join(process.cwd(), 'src', 'public', 'data', 'active-links.json'),
+      join(process.cwd(), 'src', 'data', 'active-links.json'),
       'utf-8',
     );
     const { linkIds } = JSON.parse(raw) as { linkIds: string[] };
