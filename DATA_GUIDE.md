@@ -29,7 +29,7 @@
 
 > **중요**: `TopisIccStTimesLinkTrfSectionStats`는 구현은 되어 있으나 최근 날짜 데이터를 반환하지 않아 미사용. 대신 T0/T1/T2/T3 그룹 데이터를 사용.
 
-### 3. 정적 CSV 파일 (`/src/public/data/`)
+### 3. 정적 CSV 파일 (`/src/data/`)
 
 | 파일 | 내용 | 컬럼 |
 |------|------|------|

@@ -4,6 +4,27 @@
 
 ![Seoul Traffic](https://img.shields.io/badge/Next.js-15-black?logo=nextdotjs) ![MapLibre GL](https://img.shields.io/badge/MapLibre_GL-5-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript)
 
+**🌐 Live Demo**: https://obigo-hackathon.vercel.app/
+
+> ⚠️ **알림**: 실시간 및 시간대별 데이터는 외부 공공 API(TOPIS, 서울시 열린데이터 광장) 상태에 따라 로딩이 지속될 수 있습니다.
+> 데이터가 표시되지 않을 경우, 좌측 **"테스트 데이터"** 버튼(보라색)을 클릭하면 즉시 시각화를 확인할 수 있습니다.
+
+---
+
+## 🚀 개발 과정
+
+**빠른 프로토타이핑 → AI 기반 반복 개발**
+
+1. **Replit**: 초기 아이디어를 빠르게 코드로 구현
+2. **Claude Code**: 프로토타입을 받아 실제 배포 가능한 수준으로 개선
+   - API 연동 최적화 (폴링 간격 조정: 실시간 3분, 일별 5분)
+   - 반응형 UI/UX 개선 (위젯 크기 1.75배 증가)
+   - 국제화(i18n) 적용 (한국어/영어)
+   - 모바일 차단 및 PC 전용 모드
+   - 인트로 영상을 활용한 로딩 UX
+
+**결과**: 실제 작동하는 라이브 데모 배포 완료
+
 ---
 
 ## 주요 기능
@@ -11,7 +32,7 @@
 | 기능 | 설명 |
 |------|------|
 | **실시간 교통** | TOPIS API 기반 서울 5,800+ 도로 링크 속도 (60초 갱신) |
-| **시간대별 조회** | 출근 시간(07~09) / 낮 시간(10~16) / 퇴근 시간(17~19) 통계 |
+| **시간대별 조회** | 출근 시간(07-09), 낮 시간(10-16), 퇴근 시간(17-19) 통계 |
 | **도로 색상 시각화** | 속도 0~90 km/h 구간별 그라디언트 (정체→원활) |
 | **3D 씨티맵** | MapLibre GL + MapTiler 벡터 타일, SimCity 스타일 |
 | **오늘 교통량 차트** | 24시간 시간별 막대그래프 + 선택 시간대 하이라이트 |
@@ -40,10 +61,12 @@
 ```env
 NEXT_PUBLIC_MAPTILER_KEY=your_maptiler_api_key
 TOPIS_API_KEY=your_topis_api_key
+SEOUL_TRAFFIC_KEY=your_seoul_traffic_api_key
 ```
 
 - **MapTiler API Key** — [MapTiler Cloud](https://cloud.maptiler.com/) 가입 후 발급
-- **TOPIS API Key** — [서울시 공공데이터 포털](https://data.seoul.go.kr/) 신청
+- **TOPIS API Key** — [서울교통빅데이터플랫폼](https://t-data.seoul.go.kr/) 신청
+- **Seoul Traffic API Key** — [서울 열린데이터 광장](https://data.seoul.go.kr/) 신청
 
 ### 설치 및 실행
 
