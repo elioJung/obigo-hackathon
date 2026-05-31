@@ -23,6 +23,14 @@
     "T2Sub": "10~16h",
     "T3": "Evening Rush",
     "T3Sub": "17~19h",
+    "TEST": "Test Data",
+    "TESTSub": "Hardcoded",
     "notYet": "Available after {hour}h"
+  },
+  "mobile": {
+    "title": "Please access from PC",
+    "description": "Seoul Traffic Visualization is optimized for desktop environments.",
+    "instruction": "Please access from a PC or laptop.",
+    "footer": "Seoul Traffic Visualization"
   }
 }

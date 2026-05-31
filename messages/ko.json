@@ -23,6 +23,14 @@
     "T2Sub": "10~16시",
     "T3": "퇴근 시간",
     "T3Sub": "17~19시",
+    "TEST": "테스트 데이터",
+    "TESTSub": "하드코딩",
     "notYet": "{hour}시 이후 가능"
+  },
+  "mobile": {
+    "title": "PC에서 접속해주세요",
+    "description": "서울 교통 시각화는 데스크톱 환경에 최적화되어 있습니다.",
+    "instruction": "PC 또는 노트북에서 접속해주세요.",
+    "footer": "Seoul Traffic Visualization"
   }
 }
