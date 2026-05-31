@@ -7,6 +7,7 @@ export const TIME_GROUPS = [
   { tg: 'T1',   color: '#ff8833' },
   { tg: 'T2',   color: '#88cc44' },
   { tg: 'T3',   color: '#ff5533' },
+  { tg: 'TEST', color: '#9333ea' },
 ] as const;
 
 export type TgKey = typeof TIME_GROUPS[number]['tg'];
@@ -31,18 +32,19 @@ export default function TimeGroupSelector({ selected, liveAvailable, liveLoading
   const t = useTranslations('timeGroup');
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, ...style }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 11, ...style }}>
       <style>{`
         @keyframes tg-blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
       `}</style>
       {TIME_GROUPS.map(g => {
         const isLiveBtn  = g.tg === 'live';
+        const isTestBtn  = g.tg === 'TEST';
         const minHour    = TG_MIN_HOUR[g.tg];
         const notYet     = minHour !== undefined && kstHour < minHour;
         const isLoading  = isLiveBtn
           ? (liveLoading || !liveAvailable)
-          : !notYet && !loadedTgs.has(g.tg);
-        const disabled   = notYet || isLoading;
+          : !notYet && !isTestBtn && !loadedTgs.has(g.tg);
+        const disabled   = isTestBtn ? false : (notYet || isLoading);
         const active     = selected === g.tg;
 
         const label   = t(g.tg);
@@ -60,34 +62,34 @@ export default function TimeGroupSelector({ selected, liveAvailable, liveLoading
               background: active ? `${g.color}1a` : 'rgba(6,9,15,0.82)',
               backdropFilter: 'blur(12px)',
               border: `1px solid ${active ? `${g.color}88` : disabled ? 'rgba(90,170,220,0.06)' : 'rgba(90,170,220,0.12)'}`,
-              borderRadius: 8,
-              padding: '7px 14px',
+              borderRadius: 11,
+              padding: '12px 24px',
               color: disabled ? '#243040' : active ? g.color : '#3a6888',
               cursor: disabled ? 'default' : 'pointer',
               textAlign: 'left',
               fontFamily: 'system-ui, sans-serif',
               transition: 'all 0.2s',
-              minWidth: 108,
+              minWidth: 189,
             }}
           >
-            <div style={{ fontSize: 11, fontWeight: active ? 700 : 400, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <div style={{ fontSize: 19, fontWeight: active ? 700 : 500, display: 'flex', alignItems: 'center', gap: 9 }}>
               {label}
               {notYet && (
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ff4444', display: 'inline-block', flexShrink: 0 }} />
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#ff4444', display: 'inline-block', flexShrink: 0 }} />
               )}
               {!notYet && isLoading && (
                 <span style={{
-                  width: 5, height: 5, borderRadius: '50%',
+                  width: 9, height: 9, borderRadius: '50%',
                   background: '#ffaa22', display: 'inline-block', flexShrink: 0,
                   boxShadow: '0 0 4px #ffaa2288',
                   animation: 'tg-blink 1s ease-in-out infinite',
                 }} />
               )}
               {isLiveBtn && !disabled && (
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 4px #4ade80' }} />
+                <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#4ade80', display: 'inline-block', boxShadow: '0 0 4px #4ade80' }} />
               )}
             </div>
-            <div style={{ fontSize: 9, opacity: disabled ? 0.3 : 0.65, marginTop: 1 }}>{subText}</div>
+            <div style={{ fontSize: 16, opacity: disabled ? 0.3 : 0.65, marginTop: 3 }}>{subText}</div>
           </button>
         );
       })}

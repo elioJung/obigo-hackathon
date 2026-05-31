@@ -5,8 +5,11 @@ import { useTranslations } from 'next-intl';
 import SeoulMap from './SeoulMap';
 import TrafficPanel from './TrafficPanel';
 import TimeGroupSelector, { type TgKey, TG_MIN_HOUR } from './TimeGroupSelector';
+import IntroVideo from './IntroVideo';
 import { fetchSeoulTraffic, fetchDailyData } from '@/lib/traffic';
 import type { SeoulTrafficSummary, DailyData } from '@/lib/types';
+import { useIsMobile } from '@/hooks/useIsMobile';
+import activeLinksData from '@/data/active-links.json';
 
 function getKSTTime() {
   const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
@@ -19,6 +22,8 @@ function getKSTYmd(): string {
 }
 
 export default function TrafficDashboard() {
+  const isMobile = useIsMobile();
+  const [showIntro, setShowIntro] = useState(true);
   const [selectedTg, setSelectedTg]     = useState<TgKey | null>(null);
   const [kstHour, setKstHour]           = useState(() => getKSTTime().hour);
   const [kstMinute, setKstMinute]       = useState(() => getKSTTime().minute);
@@ -30,6 +35,7 @@ export default function TrafficDashboard() {
   const [loadedTgs, setLoadedTgs]         = useState<Set<TgKey>>(new Set());
   const [isInteracting, setIsInteracting] = useState(false);
   const [isHidden, setIsHidden]           = useState(false);
+  const [testData, setTestData]           = useState<Record<string, number> | null>(null);
   const hideTimerRef    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const speedsCacheRef  = useRef<Map<string, { speeds: Record<string, number>; date: string }>>(new Map());
 
@@ -43,7 +49,7 @@ export default function TrafficDashboard() {
     return () => clearInterval(id);
   }, []);
 
-  // Real-time traffic — poll every 60s (fetch takes ~12s for 5817 links)
+  // Real-time traffic — poll every 180s (data source updates every 30s)
   useEffect(() => {
     let cancelled = false;
     const poll = async () => {
@@ -54,11 +60,11 @@ export default function TrafficDashboard() {
       if (data) setLiveTraffic(data);
     };
     poll();
-    const id = setInterval(poll, 60_000);
+    const id = setInterval(poll, 180_000);
     return () => { cancelled = true; clearInterval(id); };
   }, []);
 
-  // Daily volume for timeline bars
+  // Daily volume for timeline bars — hourly data, poll every 5min
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout>;
@@ -66,7 +72,7 @@ export default function TrafficDashboard() {
       const data = await fetchDailyData();
       if (cancelled) return;
       if (data) setDaily(data);
-      if (!cancelled) timer = setTimeout(poll, data?.loading ? 3_000 : 60_000);
+      if (!cancelled) timer = setTimeout(poll, data?.loading ? 3_000 : 300_000);
     };
     poll();
     return () => { cancelled = true; clearTimeout(timer); };
@@ -121,6 +127,7 @@ export default function TrafficDashboard() {
       setDataInfo(null);
       return;
     }
+    if (selectedTg === 'TEST') return; // TEST는 별도 처리
     const cached = speedsCacheRef.current.get(`${getKSTYmd()}-${selectedTg}`);
     if (cached) {
       setHistoricalSpeeds(cached.speeds);
@@ -128,8 +135,31 @@ export default function TrafficDashboard() {
     }
   }, [selectedTg]);
 
-  // linkSpeeds: live → TrafficInfo, else → road-stats, null → none
-  const linkSpeeds = selectedTg === 'live' ? liveTraffic?.linkSpeeds : (selectedTg ? historicalSpeeds : undefined);
+  // TEST 버튼 클릭 시에만 새 테스트 데이터 생성
+  useEffect(() => {
+    if (selectedTg === 'TEST') {
+      const testSpeeds: Record<string, number> = {};
+      const allLinks = activeLinksData.linkIds;
+      allLinks.forEach(linkId => {
+        const rand = Math.random();
+        if (rand < 0.3) {
+          testSpeeds[linkId] = 5 + Math.random() * 20; // Congested
+        } else if (rand < 0.7) {
+          testSpeeds[linkId] = 25 + Math.random() * 20; // Moderate
+        } else {
+          testSpeeds[linkId] = 45 + Math.random() * 25; // Smooth
+        }
+      });
+      setTestData(testSpeeds);
+    }
+  }, [selectedTg]);
+
+  // linkSpeeds: live → TrafficInfo, TEST → cached testData, else → road-stats, null → none
+  const linkSpeeds = selectedTg === 'live'
+    ? liveTraffic?.linkSpeeds
+    : selectedTg === 'TEST'
+      ? testData ?? undefined
+      : (selectedTg ? historicalSpeeds : undefined);
 
   const handleInteractionChange = useCallback((active: boolean) => {
     clearTimeout(hideTimerRef.current);
@@ -143,6 +173,7 @@ export default function TrafficDashboard() {
   const t = useTranslations('title');
   const tc = useTranslations('controls');
   const tl = useTranslations('legend');
+  const tm = useTranslations('mobile');
 
   const visible = !isHidden && !isInteracting;
   const overlayStyle: React.CSSProperties = {
@@ -151,22 +182,58 @@ export default function TrafficDashboard() {
     transition: 'opacity 0.25s ease',
   };
 
+  // Mobile warning screen
+  if (isMobile) {
+    return (
+      <div style={{
+        width: '100vw',
+        height: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'linear-gradient(135deg, #0a1628 0%, #1a2a45 100%)',
+        padding: '20px',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#fff',
+        textAlign: 'center',
+      }}>
+        <div style={{ fontSize: 64, marginBottom: 24 }}>🖥️</div>
+        <h1 style={{ fontSize: 28, fontWeight: 700, color: '#5aaadd', marginBottom: 16 }}>
+          {tm('title')}
+        </h1>
+        <p style={{ fontSize: 16, color: '#7a9ab8', lineHeight: 1.6, maxWidth: 400 }}>
+          {tm('description')}<br />
+          {tm('instruction')}
+        </p>
+        <div style={{ marginTop: 32, fontSize: 14, color: '#4a6a88' }}>
+          {tm('footer')}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
-      <SeoulMap onInteractionChange={handleInteractionChange} linkSpeeds={linkSpeeds} />
+    <>
+      {/* Intro video overlay - plays while app loads in background (desktop only) */}
+      {!isMobile && showIntro && <IntroVideo onComplete={() => setShowIntro(false)} />}
+
+      {/* Main app - renders immediately to start loading in background */}
+      <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
+        <SeoulMap onInteractionChange={handleInteractionChange} linkSpeeds={linkSpeeds} />
 
       {/* Title */}
       <div style={{
         ...overlayStyle,
         position: 'absolute', top: 20, left: 20,
         background: 'rgba(6,9,15,0.82)', backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(90,170,220,0.15)', borderRadius: 8, padding: '8px 14px',
+        border: '1px solid rgba(90,170,220,0.15)', borderRadius: 11, padding: '14px 24px',
         pointerEvents: 'none', userSelect: 'none',
       }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#5aaadd', letterSpacing: 1.5, fontFamily: 'system-ui' }}>
+        <div style={{ fontSize: 23, fontWeight: 700, color: '#5aaadd', letterSpacing: 1.5, fontFamily: 'system-ui' }}>
           {t('main')}
         </div>
-        <div style={{ fontSize: 9, color: '#2a5878', marginTop: 2, fontFamily: 'monospace', letterSpacing: 1 }}>
+        <div style={{ fontSize: 16, color: '#2a5878', marginTop: 4, fontFamily: 'monospace', letterSpacing: 1 }}>
           {t('sub')}
         </div>
       </div>
@@ -199,12 +266,12 @@ export default function TrafficDashboard() {
         ...overlayStyle,
         position: 'absolute', bottom: 24, right: 20,
         background: 'rgba(6,9,15,0.82)', backdropFilter: 'blur(12px)',
-        border: '1px solid rgba(90,170,220,0.15)', borderRadius: 8,
-        padding: '8px 12px',
+        border: '1px solid rgba(90,170,220,0.15)', borderRadius: 11,
+        padding: '14px 20px',
         fontFamily: 'system-ui, monospace',
         userSelect: 'none',
       }}>
-        <div style={{ fontSize: 9, color: '#2a5878', marginBottom: 5, letterSpacing: 1 }}>{tl('speedTitle')}</div>
+        <div style={{ fontSize: 16, color: '#2a5878', marginBottom: 9, letterSpacing: 1 }}>{tl('speedTitle')}</div>
         {([
           ['#cc0000', '0'],
           ['#ff5500', '17'],
@@ -216,9 +283,9 @@ export default function TrafficDashboard() {
           ['#44aaff', '55'],
           ['#aaddff', '90+'],
         ] as const).map(([color, label]) => (
-          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-            <span style={{ width: 24, height: 4, borderRadius: 2, background: color, display: 'inline-block', flexShrink: 0 }} />
-            <span style={{ fontSize: 9, color: '#3a6888' }}>{label}</span>
+          <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 5 }}>
+            <span style={{ width: 42, height: 7, borderRadius: 3, background: color, display: 'inline-block', flexShrink: 0 }} />
+            <span style={{ fontSize: 16, color: '#3a6888' }}>{label}</span>
           </div>
         ))}
       </div>
@@ -229,17 +296,18 @@ export default function TrafficDashboard() {
         title={isHidden ? tc('showPanel') : tc('hidePanel')}
         style={{
           position: 'absolute', bottom: 24, left: 20,
-          width: 32, height: 32, borderRadius: 8,
+          width: 56, height: 56, borderRadius: 11,
           background: 'rgba(6,9,15,0.82)', backdropFilter: 'blur(10px)',
           border: `1px solid rgba(90,170,220,${isHidden ? '0.5' : '0.15'})`,
           color: isHidden ? '#5aaadd' : '#2a5878',
-          fontSize: 14, cursor: 'pointer',
+          fontSize: 22, cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           transition: 'border-color 0.2s, color 0.2s',
         }}
       >
         {isHidden ? '◉' : '◎'}
       </button>
-    </div>
+      </div>
+    </>
   );
 }
