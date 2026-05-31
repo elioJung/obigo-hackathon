@@ -166,7 +166,7 @@ export default function TrafficDashboard() {
     if (active) {
       setIsInteracting(true);
     } else {
-      hideTimerRef.current = setTimeout(() => setIsInteracting(false), 400);
+      hideTimerRef.current = setTimeout(() => setIsInteracting(false), 150);
     }
   }, []);
 
