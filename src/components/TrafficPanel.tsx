@@ -10,6 +10,7 @@ const TG_COLOR: Record<string, string> = {
   T1:   '#ff8833',
   T2:   '#88cc44',
   T3:   '#ff5533',
+  TEST: '#9333ea',
 };
 
 const TG_RANGE: Record<string, [number, number]> = {
@@ -48,37 +49,37 @@ export default function TrafficPanel({ kstHour, kstMinute, selectedTg, daily, da
   };
 
   return (
-    <div style={{ ...panel, position: 'absolute', top: 20, right: 20, padding: '10px 14px', minWidth: 180 }}>
+    <div style={{ ...panel, position: 'absolute', top: 20, right: 20, padding: '18px 24px', minWidth: 315, maxWidth: '90vw' }}>
 
       {/* Current time */}
-      <div style={{ fontSize: 17, fontWeight: 700, color: '#e8f4ff', letterSpacing: -0.5, marginBottom: 8 }}>
+      <div style={{ fontSize: 30, fontWeight: 700, color: '#e8f4ff', letterSpacing: -0.5, marginBottom: 14 }}>
         {formatClock(kstHour, kstMinute)}
       </div>
 
       {/* Selected time group badge */}
       {selectedTg && color && (
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 6,
+          display: 'inline-flex', alignItems: 'center', gap: 9,
           background: `${color}1a`,
           border: `1px solid ${color}55`,
-          borderRadius: 6, padding: '4px 10px', marginBottom: 8,
+          borderRadius: 9, padding: '7px 16px', marginBottom: 14,
         }}>
-          <span style={{ fontSize: 11, fontWeight: 700, color }}>{t(selectedTg)}</span>
-          <span style={{ fontSize: 9, color, opacity: 0.75 }}>{t(`${selectedTg}Sub` as Parameters<typeof t>[0])}</span>
+          <span style={{ fontSize: 19, fontWeight: 700, color }}>{t(selectedTg)}</span>
+          <span style={{ fontSize: 16, color, opacity: 0.75 }}>{t(`${selectedTg}Sub` as Parameters<typeof t>[0])}</span>
         </div>
       )}
 
       {/* Data date info */}
       {dataInfo && selectedTg !== 'live' && (
-        <div style={{ fontSize: 9, color: '#4a7a9a', marginBottom: 8 }}>
+        <div style={{ fontSize: 16, color: '#4a7a9a', marginBottom: 14 }}>
           {tp('dataDate')}: {dataInfo.date.slice(0,4)}.{dataInfo.date.slice(4,6)}.{dataInfo.date.slice(6,8)}
         </div>
       )}
 
       {/* Daily volume bars */}
       {daily && (
-        <div style={{ marginBottom: 6 }}>
-          <div style={{ fontSize: 9, color: '#4a7a9a', marginBottom: 4 }}>{tp('todayTraffic')}</div>
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 16, color: '#4a7a9a', marginBottom: 7 }}>{tp('todayTraffic')}</div>
           <div style={{ position: 'relative' }}>
             {color && rangeStart !== undefined && rangeEnd !== undefined && (
               <div style={{
@@ -93,7 +94,7 @@ export default function TrafficPanel({ kstHour, kstMinute, selectedTg, daily, da
                 pointerEvents: 'none',
               }} />
             )}
-            <div style={{ display: 'flex', gap: 3, alignItems: 'flex-end', height: 24 }}>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'flex-end', height: 42 }}>
               {Array.from({ length: 24 }, (_, hh) => {
                 const entry     = daily.hours[hh];
                 const intensity = entry?.intensity ?? 0;
@@ -115,9 +116,9 @@ export default function TrafficPanel({ kstHour, kstMinute, selectedTg, daily, da
                     key={hh}
                     style={{
                       flex: 1,
-                      height: Math.max(2, Math.round(intensity * 20)),
+                      height: Math.max(4, Math.round(intensity * 38)),
                       background: barColor,
-                      borderRadius: 1,
+                      borderRadius: 2,
                       opacity: isFuture ? 0.3 : (hasRange && !inRange && !isNow) ? 0.3 : 1,
                       transition: 'opacity 0.3s, background 0.3s',
                     }}
