@@ -343,13 +343,16 @@ interface Props {
   onAccidentsLoaded?: () => void;
 }
 
-export default function SeoulMap({ onInteractionChange, linkSpeeds, showAccidents = true, onAccidentsLoaded }: Props) {
-  const containerRef  = useRef<HTMLDivElement>(null);
-  const mapRef        = useRef<maplibregl.Map | null>(null);
-  const mapReadyRef   = useRef(false);
-  const networkRef    = useRef<GeoJSON.FeatureCollection | null>(null);
-  const linkSpeedsRef = useRef(linkSpeeds);
+export default function SeoulMap({ onInteractionChange, linkSpeeds, showAccidents = false, onAccidentsLoaded }: Props) {
+  const containerRef     = useRef<HTMLDivElement>(null);
+  const mapRef           = useRef<maplibregl.Map | null>(null);
+  const mapReadyRef      = useRef(false);
+  const networkRef       = useRef<GeoJSON.FeatureCollection | null>(null);
+  const linkSpeedsRef    = useRef(linkSpeeds);
+  const showAccidentsRef = useRef(showAccidents);
+
   useEffect(() => { linkSpeedsRef.current = linkSpeeds; }, [linkSpeeds]);
+  useEffect(() => { showAccidentsRef.current = showAccidents; }, [showAccidents]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -502,6 +505,11 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, showAccident
           'circle-stroke-opacity': 0.6,
         },
       }, labelLayerId);
+
+      // 초기 visibility를 현재 showAccidents 값으로 설정
+      const initVis = showAccidentsRef.current ? 'visible' : 'none';
+      map.setLayoutProperty('accident-glow', 'visibility', initVis);
+      map.setLayoutProperty('accident-dot',  'visibility', initVis);
 
       fetch('/api/accident-hotspots')
         .then(r => r.json())
