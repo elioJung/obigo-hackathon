@@ -12,17 +12,17 @@
   },
   "panel": {
     "todayTraffic": "오늘 교통량",
-    "dataDate": "기준"
+    "dataDate": "전일 기준"
   },
   "timeGroup": {
     "live": "실시간",
     "liveSub": "현재",
     "T1": "출근 시간",
-    "T1Sub": "07~09시",
+    "T1Sub": "전일 07~09시",
     "T2": "낮 시간",
-    "T2Sub": "10~16시",
+    "T2Sub": "전일 10~16시",
     "T3": "퇴근 시간",
-    "T3Sub": "17~19시",
+    "T3Sub": "전일 17~19시",
     "TEST": "테스트 데이터",
     "TESTSub": "하드코딩",
     "notYet": "{hour}시 이후 가능"

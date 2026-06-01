@@ -14,7 +14,7 @@ function getAxisLinkMap(): Map<string, string[]> {
   if (axisLinkMap) return axisLinkMap;
 
   const raw = readFileSync(
-    join(process.cwd(), 'src', 'public', 'data', 'seoul-axis-links.csv'),
+    join(process.cwd(), 'src', 'data', 'seoul-axis-links.csv'),
     'utf-8',
   ).replace(/^﻿/, ''); // strip BOM
 
@@ -37,7 +37,7 @@ function getAxisLinkMap(): Map<string, string[]> {
 
 // ── Dynamic cache: date → timeGroup → { linkId: avgSpd } ──────────────────
 const cache: Record<string, Record<TimeGroup, Record<string, number>> | null> = {};
-const loading = new Set<string>();
+const loadingPromises = new Map<string, Promise<void>>();
 
 function ymd(d: Date): string {
   return [
@@ -48,8 +48,15 @@ function ymd(d: Date): string {
 }
 
 async function loadDay(key: string, date: string) {
-  if (date in cache || loading.has(date)) return;
-  loading.add(date);
+  if (date in cache) return;
+  if (loadingPromises.has(date)) return loadingPromises.get(date);
+
+  const promise = fetchDay(key, date).finally(() => loadingPromises.delete(date));
+  loadingPromises.set(date, promise);
+  return promise;
+}
+
+async function fetchDay(key: string, date: string) {
 
   const axisMap = getAxisLinkMap();
   // axisCd → timeGroup → avgSpd (temporary)
@@ -58,8 +65,7 @@ async function loadDay(key: string, date: string) {
   let startRow = 1;
   let total = 0;
 
-  try {
-    while (true) {
+  while (true) {
       const url = `${BASE}/TopisIccStDailyRoadTrfRoadStats/1.0?apikey=${key}&stndDt=${date}&startRow=${startRow}&rowCnt=${PAGE}`;
       const res = await fetch(url, { signal: AbortSignal.timeout(20_000) });
       if (!res.ok) { console.warn(`[road-stats] ${date} HTTP ${res.status}`); break; }
@@ -84,9 +90,6 @@ async function loadDay(key: string, date: string) {
       if (list.length < PAGE) break;
       startRow += PAGE;
       if (startRow > 500_000) break;
-    }
-  } finally {
-    loading.delete(date);
   }
 
   if (total === 0) {
@@ -127,17 +130,9 @@ export async function GET(req: NextRequest) {
     parseInt(reqDate.slice(6, 8)),
   );
 
-  for (let i = 0; i < 7; i++) {
-    const date = ymd(d);
+  const date = ymd(d);
+  if (!(date in cache)) await loadDay(key, date).catch(console.error);
 
-    if (loading.has(date))   return NextResponse.json({ loading: true,  speeds: {}, date });
-    if (!(date in cache))    { loadDay(key, date).catch(console.error); return NextResponse.json({ loading: true, speeds: {}, date }); }
-    if (cache[date] === null) { d.setDate(d.getDate() - 1); continue; }
-
-    const speeds = cache[date]![tg] ?? {};
-    console.log(`[road-stats] serving ${date} ${tg}: ${Object.keys(speeds).length} links`);
-    return NextResponse.json({ loading: false, speeds, date });
-  }
-
-  return NextResponse.json({ loading: false, speeds: {}, noData: true });
+  const speeds = cache[date]?.[tg] ?? {};
+  return NextResponse.json({ speeds, date });
 }

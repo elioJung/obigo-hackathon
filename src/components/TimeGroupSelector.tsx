@@ -12,23 +12,16 @@ export const TIME_GROUPS = [
 
 export type TgKey = typeof TIME_GROUPS[number]['tg'];
 
-export const TG_MIN_HOUR: Partial<Record<TgKey, number>> = {
-  T1: 10,
-  T2: 17,
-  T3: 20,
-};
-
 interface Props {
   selected: TgKey | null;
   liveAvailable: boolean;
   liveLoading: boolean;
-  kstHour: number;
   loadedTgs: Set<TgKey>;
   onSelect: (tg: TgKey) => void;
   style?: React.CSSProperties;
 }
 
-export default function TimeGroupSelector({ selected, liveAvailable, liveLoading, kstHour, loadedTgs, onSelect, style }: Props) {
+export default function TimeGroupSelector({ selected, liveAvailable, liveLoading, loadedTgs, onSelect, style }: Props) {
   const t = useTranslations('timeGroup');
 
   return (
@@ -39,18 +32,12 @@ export default function TimeGroupSelector({ selected, liveAvailable, liveLoading
       {TIME_GROUPS.map(g => {
         const isLiveBtn  = g.tg === 'live';
         const isTestBtn  = g.tg === 'TEST';
-        const minHour    = TG_MIN_HOUR[g.tg];
-        const notYet     = minHour !== undefined && kstHour < minHour;
-        const isLoading  = isLiveBtn
-          ? (liveLoading || !liveAvailable)
-          : !notYet && !isTestBtn && !loadedTgs.has(g.tg);
-        const disabled   = isTestBtn ? false : (notYet || isLoading);
+        const isLoading  = isLiveBtn ? (liveLoading || !liveAvailable) : !isTestBtn && !loadedTgs.has(g.tg);
+        const disabled   = isTestBtn ? false : isLoading;
         const active     = selected === g.tg;
 
         const label   = t(g.tg);
-        const subText = notYet
-          ? t('notYet', { hour: minHour })
-          : t(`${g.tg}Sub` as Parameters<typeof t>[0]);
+        const subText = t(`${g.tg}Sub` as Parameters<typeof t>[0]);
 
         return (
           <button
@@ -74,10 +61,7 @@ export default function TimeGroupSelector({ selected, liveAvailable, liveLoading
           >
             <div style={{ fontSize: 19, fontWeight: active ? 700 : 500, display: 'flex', alignItems: 'center', gap: 9 }}>
               {label}
-              {notYet && (
-                <span style={{ width: 9, height: 9, borderRadius: '50%', background: '#ff4444', display: 'inline-block', flexShrink: 0 }} />
-              )}
-              {!notYet && isLoading && (
+              {isLoading && (
                 <span style={{
                   width: 9, height: 9, borderRadius: '50%',
                   background: '#ffaa22', display: 'inline-block', flexShrink: 0,

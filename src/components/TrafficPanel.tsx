@@ -70,14 +70,14 @@ export default function TrafficPanel({ kstHour, kstMinute, selectedTg, daily, da
       )}
 
       {/* Data date info */}
-      {dataInfo && selectedTg !== 'live' && (
+      {dataInfo && selectedTg !== 'live' && selectedTg !== 'TEST' && (
         <div style={{ fontSize: 16, color: '#4a7a9a', marginBottom: 14 }}>
           {tp('dataDate')}: {dataInfo.date.slice(0,4)}.{dataInfo.date.slice(4,6)}.{dataInfo.date.slice(6,8)}
         </div>
       )}
 
-      {/* Daily volume bars */}
-      {daily && (
+      {/* Daily volume bars — live 모드에서만 표시 */}
+      {daily && selectedTg === 'live' && (
         <div style={{ marginBottom: 10 }}>
           <div style={{ fontSize: 16, color: '#4a7a9a', marginBottom: 7 }}>{tp('todayTraffic')}</div>
           <div style={{ position: 'relative' }}>

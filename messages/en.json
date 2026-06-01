@@ -12,17 +12,17 @@
   },
   "panel": {
     "todayTraffic": "Today's Traffic",
-    "dataDate": "Date"
+    "dataDate": "Prev. Day"
   },
   "timeGroup": {
     "live": "Live",
     "liveSub": "Now",
     "T1": "Morning Rush",
-    "T1Sub": "07~09h",
+    "T1Sub": "Prev. day · 07~09h",
     "T2": "Daytime",
-    "T2Sub": "10~16h",
+    "T2Sub": "Prev. day · 10~16h",
     "T3": "Evening Rush",
-    "T3Sub": "17~19h",
+    "T3Sub": "Prev. day · 17~19h",
     "TEST": "Test Data",
     "TESTSub": "Hardcoded",
     "notYet": "Available after {hour}h"

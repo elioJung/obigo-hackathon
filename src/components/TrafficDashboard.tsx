@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useTranslations } from 'next-intl';
 import SeoulMap from './SeoulMap';
 import TrafficPanel from './TrafficPanel';
-import TimeGroupSelector, { type TgKey, TG_MIN_HOUR } from './TimeGroupSelector';
+import TimeGroupSelector, { type TgKey } from './TimeGroupSelector';
 import IntroVideo from './IntroVideo';
 import { fetchSeoulTraffic, fetchDailyData } from '@/lib/traffic';
 import type { SeoulTrafficSummary, DailyData } from '@/lib/types';
@@ -16,8 +16,9 @@ function getKSTTime() {
   return { hour: d.getHours(), minute: d.getMinutes() };
 }
 
-function getKSTYmd(): string {
+function getKSTYesterday(): string {
   const d = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  d.setDate(d.getDate() - 1);
   return [d.getFullYear(), String(d.getMonth()+1).padStart(2,'0'), String(d.getDate()).padStart(2,'0')].join('');
 }
 
@@ -78,16 +79,12 @@ export default function TrafficDashboard() {
     return () => { cancelled = true; clearTimeout(timer); };
   }, []);
 
-  // 시간이 지난 tg 백그라운드 프리페치 — kstHour가 바뀌면 새로 잠금 해제된 tg도 자동 fetch
+  // 전일 도로통계 프리페치 — 마운트 시 T1/T2/T3 모두 즉시 fetch
   useEffect(() => {
-    const dateStr = getKSTYmd();
+    const dateStr = getKSTYesterday();
     const cancelled: Partial<Record<TgKey, boolean>> = {};
-    const timers:    Partial<Record<TgKey, ReturnType<typeof setTimeout>>> = {};
 
     (['T1', 'T2', 'T3'] as const).forEach(tg => {
-      const minHour = TG_MIN_HOUR[tg];
-      if (minHour === undefined || kstHour < minHour) return;
-
       const fetchKey = `${dateStr}-${tg}`;
       if (speedsCacheRef.current.has(fetchKey)) {
         setLoadedTgs(prev => prev.has(tg) ? prev : new Set([...prev, tg]));
@@ -95,30 +92,24 @@ export default function TrafficDashboard() {
       }
 
       cancelled[tg] = false;
-      const poll = async () => {
+      const load = async () => {
         try {
           const res  = await fetch(`/api/topis/road-stats?date=${dateStr}&tg=${tg}`);
-          const data = await res.json() as { loading: boolean; speeds: Record<string, number>; date?: string };
+          const data = await res.json() as { speeds: Record<string, number>; date?: string };
           if (cancelled[tg]) return;
-          if (!data.loading && Object.keys(data.speeds ?? {}).length > 0) {
-            const entry = { speeds: data.speeds, date: data.date ?? dateStr };
-            speedsCacheRef.current.set(fetchKey, entry);
+          if (Object.keys(data.speeds ?? {}).length > 0) {
+            speedsCacheRef.current.set(fetchKey, { speeds: data.speeds, date: data.date ?? dateStr });
             setLoadedTgs(prev => new Set([...prev, tg]));
-          } else if (data.loading) {
-            timers[tg] = setTimeout(poll, 3_000);
           }
         } catch { /* ignore */ }
       };
-      poll();
+      load();
     });
 
     return () => {
-      (['T1', 'T2', 'T3'] as const).forEach(tg => {
-        cancelled[tg] = true;
-        clearTimeout(timers[tg]);
-      });
+      (['T1', 'T2', 'T3'] as const).forEach(tg => { cancelled[tg] = true; });
     };
-  }, [kstHour]);
+  }, []);
 
   // 선택된 tg가 바뀌면 캐시에서 즉시 적용 (버튼은 로드 완료 후에만 활성화되므로 캐시 보장)
   useEffect(() => {
@@ -128,7 +119,7 @@ export default function TrafficDashboard() {
       return;
     }
     if (selectedTg === 'TEST') return; // TEST는 별도 처리
-    const cached = speedsCacheRef.current.get(`${getKSTYmd()}-${selectedTg}`);
+    const cached = speedsCacheRef.current.get(`${getKSTYesterday()}-${selectedTg}`);
     if (cached) {
       setHistoricalSpeeds(cached.speeds);
       setDataInfo({ date: cached.date, tg: selectedTg });
@@ -244,7 +235,6 @@ export default function TrafficDashboard() {
           selected={selectedTg}
           liveAvailable={liveTraffic !== null}
           liveLoading={liveLoading}
-          kstHour={kstHour}
           loadedTgs={loadedTgs}
           onSelect={setSelectedTg}
         />
