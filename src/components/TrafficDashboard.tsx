@@ -34,6 +34,7 @@ export default function TrafficDashboard() {
   const [historicalSpeeds, setHistoricalSpeeds] = useState<Record<string, number> | undefined>(undefined);
   const [dataInfo, setDataInfo]         = useState<{ date: string; tg: string } | null>(null);
   const [loadedTgs, setLoadedTgs]         = useState<Set<TgKey>>(new Set());
+  const [failedTgs, setFailedTgs]         = useState<Set<TgKey>>(new Set());
   const [isInteracting, setIsInteracting]   = useState(false);
   const [isHidden, setIsHidden]             = useState(false);
   const [showAccidents, setShowAccidents]     = useState(false);
@@ -102,8 +103,12 @@ export default function TrafficDashboard() {
           if (Object.keys(data.speeds ?? {}).length > 0) {
             speedsCacheRef.current.set(fetchKey, { speeds: data.speeds, date: data.date ?? dateStr });
             setLoadedTgs(prev => new Set([...prev, tg]));
+          } else {
+            setFailedTgs(prev => new Set([...prev, tg]));
           }
-        } catch { /* ignore */ }
+        } catch {
+          setFailedTgs(prev => new Set([...prev, tg]));
+        }
       };
       load();
     });
@@ -237,6 +242,7 @@ export default function TrafficDashboard() {
           liveAvailable={liveTraffic !== null}
           liveLoading={liveLoading}
           loadedTgs={loadedTgs}
+          failedTgs={failedTgs}
           onSelect={(tg) => setSelectedTg(prev => prev === tg ? null : tg)}
         />
         <button

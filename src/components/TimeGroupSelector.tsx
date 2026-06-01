@@ -19,11 +19,12 @@ interface Props {
   liveAvailable: boolean;
   liveLoading: boolean;
   loadedTgs: Set<TgKey>;
+  failedTgs: Set<TgKey>;
   onSelect: (tg: TgKey) => void;
   style?: React.CSSProperties;
 }
 
-export default function TimeGroupSelector({ selected, liveAvailable, liveLoading, loadedTgs, onSelect, style }: Props) {
+export default function TimeGroupSelector({ selected, liveAvailable, liveLoading, loadedTgs, failedTgs, onSelect, style }: Props) {
   const t = useTranslations('timeGroup');
 
   return (
@@ -31,8 +32,9 @@ export default function TimeGroupSelector({ selected, liveAvailable, liveLoading
       {TIME_GROUPS.map(g => {
         const isLiveBtn  = g.tg === 'live';
         const isTestBtn  = g.tg === 'TEST';
-        const isLoading  = isLiveBtn ? (liveLoading || !liveAvailable) : !isTestBtn && !loadedTgs.has(g.tg);
-        const disabled   = isTestBtn ? false : isLoading;
+        const isFailed   = !isLiveBtn && !isTestBtn && failedTgs.has(g.tg);
+        const isLoading  = isLiveBtn ? (liveLoading || !liveAvailable) : !isTestBtn && !loadedTgs.has(g.tg) && !isFailed;
+        const disabled   = isTestBtn ? false : isLoading || isFailed;
         const active     = selected === g.tg;
 
         const label   = t(g.tg);
@@ -66,6 +68,13 @@ export default function TimeGroupSelector({ selected, liveAvailable, liveLoading
                   background: '#ffaa22', display: 'inline-block', flexShrink: 0,
                   boxShadow: '0 0 4px #ffaa2288',
                   animation: 'tg-blink 1s ease-in-out infinite',
+                }} />
+              )}
+              {isFailed && (
+                <span style={{
+                  width: 9, height: 9, borderRadius: '50%',
+                  background: '#ff4444', display: 'inline-block', flexShrink: 0,
+                  boxShadow: '0 0 4px #ff444488',
                 }} />
               )}
               {isLiveBtn && !disabled && (
