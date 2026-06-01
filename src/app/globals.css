@@ -1,3 +1,18 @@
+@keyframes tg-blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+.accident-popup .maplibregl-popup-content {
+  background: rgba(6, 9, 15, 0.92);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 100, 60, 0.3);
+  border-radius: 10px;
+  padding: 12px 16px;
+  box-shadow: 0 4px 24px rgba(255, 60, 20, 0.15);
+}
+
+.accident-popup .maplibregl-popup-tip {
+  border-top-color: rgba(6, 9, 15, 0.92);
+}
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;

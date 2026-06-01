@@ -26,9 +26,6 @@ export default function TimeGroupSelector({ selected, liveAvailable, liveLoading
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 11, ...style }}>
-      <style>{`
-        @keyframes tg-blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
-      `}</style>
       {TIME_GROUPS.map(g => {
         const isLiveBtn  = g.tg === 'live';
         const isTestBtn  = g.tg === 'TEST';

@@ -8,7 +8,8 @@
     "hidePanel": "Hide panels"
   },
   "legend": {
-    "speedTitle": "Speed (km/h)"
+    "speedTitle": "Speed (km/h)",
+    "accidentTitle": "Accident Zones (count)"
   },
   "panel": {
     "todayTraffic": "Today's Traffic",
@@ -26,6 +27,10 @@
     "TEST": "Test Data",
     "TESTSub": "Hardcoded",
     "notYet": "Available after {hour}h"
+  },
+  "accidents": {
+    "label": "Accident Zones",
+    "sub": "Based on 2024"
   },
   "mobile": {
     "title": "Please access from PC",

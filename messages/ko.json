@@ -8,7 +8,8 @@
     "hidePanel": "패널 숨기기"
   },
   "legend": {
-    "speedTitle": "속도 기준 (km/h)"
+    "speedTitle": "속도 기준 (km/h)",
+    "accidentTitle": "사고 다발구역 (건수)"
   },
   "panel": {
     "todayTraffic": "오늘 교통량",
@@ -26,6 +27,10 @@
     "TEST": "테스트 데이터",
     "TESTSub": "하드코딩",
     "notYet": "{hour}시 이후 가능"
+  },
+  "accidents": {
+    "label": "사고 다발구역",
+    "sub": "2024년 기준"
   },
   "mobile": {
     "title": "PC에서 접속해주세요",

@@ -23,6 +23,7 @@ interface Props {
   selectedTg: TgKey | null;
   daily: DailyData | null;
   dataInfo?: { date: string; tg: string } | null;
+  showAccidents?: boolean;
 }
 
 function formatClock(h: number, m: number): string {
@@ -30,9 +31,10 @@ function formatClock(h: number, m: number): string {
   return `${(hh % 12 || 12)}:${String(m).padStart(2, '0')} ${hh < 12 ? 'AM' : 'PM'}`;
 }
 
-export default function TrafficPanel({ kstHour, kstMinute, selectedTg, daily, dataInfo }: Props) {
-  const t = useTranslations('timeGroup');
+export default function TrafficPanel({ kstHour, kstMinute, selectedTg, daily, dataInfo, showAccidents }: Props) {
+  const t  = useTranslations('timeGroup');
   const tp = useTranslations('panel');
+  const ta = useTranslations('accidents');
 
   const color     = selectedTg ? TG_COLOR[selectedTg] : null;
   const tgRange   = selectedTg ? TG_RANGE[selectedTg] : undefined;
@@ -59,19 +61,34 @@ export default function TrafficPanel({ kstHour, kstMinute, selectedTg, daily, da
       {/* Selected time group badge */}
       {selectedTg && color && (
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 9,
+          display: 'flex', alignItems: 'center', gap: 9,
           background: `${color}1a`,
           border: `1px solid ${color}55`,
-          borderRadius: 9, padding: '7px 16px', marginBottom: 14,
+          borderRadius: 9, padding: '7px 16px', marginBottom: 10,
+          width: 'fit-content',
         }}>
           <span style={{ fontSize: 19, fontWeight: 700, color }}>{t(selectedTg)}</span>
           <span style={{ fontSize: 16, color, opacity: 0.75 }}>{t(`${selectedTg}Sub` as Parameters<typeof t>[0])}</span>
         </div>
       )}
 
+      {/* Accident zones badge */}
+      {showAccidents && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 9,
+          background: 'rgba(255,68,34,0.12)',
+          border: '1px solid rgba(255,100,60,0.5)',
+          borderRadius: 9, padding: '7px 16px', marginBottom: 10,
+          width: 'fit-content',
+        }}>
+          <span style={{ fontSize: 19, fontWeight: 700, color: '#ff8866' }}>{ta('label')}</span>
+          <span style={{ fontSize: 16, color: '#ff8866', opacity: 0.75 }}>{ta('sub')}</span>
+        </div>
+      )}
+
       {/* Data date info */}
       {dataInfo && selectedTg !== 'live' && selectedTg !== 'TEST' && (
-        <div style={{ fontSize: 16, color: '#4a7a9a', marginBottom: 14 }}>
+        <div style={{ fontSize: 16, color: '#4a7a9a', marginBottom: 10 }}>
           {tp('dataDate')}: {dataInfo.date.slice(0,4)}.{dataInfo.date.slice(4,6)}.{dataInfo.date.slice(6,8)}
         </div>
       )}

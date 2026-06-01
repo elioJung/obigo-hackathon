@@ -34,8 +34,10 @@ export default function TrafficDashboard() {
   const [historicalSpeeds, setHistoricalSpeeds] = useState<Record<string, number> | undefined>(undefined);
   const [dataInfo, setDataInfo]         = useState<{ date: string; tg: string } | null>(null);
   const [loadedTgs, setLoadedTgs]         = useState<Set<TgKey>>(new Set());
-  const [isInteracting, setIsInteracting] = useState(false);
-  const [isHidden, setIsHidden]           = useState(false);
+  const [isInteracting, setIsInteracting]   = useState(false);
+  const [isHidden, setIsHidden]             = useState(false);
+  const [showAccidents, setShowAccidents]     = useState(false);
+  const [accidentsLoaded, setAccidentsLoaded] = useState(false);
   const [testData, setTestData]           = useState<Record<string, number> | null>(null);
   const hideTimerRef    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const speedsCacheRef  = useRef<Map<string, { speeds: Record<string, number>; date: string }>>(new Map());
@@ -161,8 +163,9 @@ export default function TrafficDashboard() {
     }
   }, []);
 
-  const t = useTranslations('title');
+  const t  = useTranslations('title');
   const tc = useTranslations('controls');
+  const ta = useTranslations('accidents');
   const tl = useTranslations('legend');
   const tm = useTranslations('mobile');
 
@@ -211,7 +214,7 @@ export default function TrafficDashboard() {
 
       {/* Main app - renders immediately to start loading in background */}
       <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
-        <SeoulMap onInteractionChange={handleInteractionChange} linkSpeeds={linkSpeeds} />
+        <SeoulMap onInteractionChange={handleInteractionChange} linkSpeeds={linkSpeeds} showAccidents={showAccidents} onAccidentsLoaded={() => setAccidentsLoaded(true)} />
 
       {/* Title */}
       <div style={{
@@ -229,8 +232,8 @@ export default function TrafficDashboard() {
         </div>
       </div>
 
-      {/* Time group selector — left center */}
-      <div style={{ ...overlayStyle, position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)' }}>
+      {/* Time group selector + accident toggle — left center */}
+      <div style={{ ...overlayStyle, position: 'absolute', left: 20, top: '50%', transform: 'translateY(-50%)', display: 'flex', flexDirection: 'column', gap: 11 }}>
         <TimeGroupSelector
           selected={selectedTg}
           liveAvailable={liveTraffic !== null}
@@ -238,6 +241,37 @@ export default function TrafficDashboard() {
           loadedTgs={loadedTgs}
           onSelect={setSelectedTg}
         />
+        <button
+          data-no-drag
+          onClick={() => accidentsLoaded && setShowAccidents(v => !v)}
+          disabled={!accidentsLoaded}
+          style={{
+            background: showAccidents ? 'rgba(255,68,34,0.12)' : 'rgba(6,9,15,0.82)',
+            backdropFilter: 'blur(12px)',
+            border: `1px solid ${showAccidents ? 'rgba(255,100,60,0.5)' : !accidentsLoaded ? 'rgba(90,170,220,0.06)' : 'rgba(90,170,220,0.12)'}`,
+            borderRadius: 11,
+            padding: '12px 24px',
+            color: !accidentsLoaded ? '#243040' : showAccidents ? '#ff8866' : '#3a6888',
+            cursor: !accidentsLoaded ? 'default' : 'pointer',
+            textAlign: 'left',
+            fontFamily: 'system-ui, sans-serif',
+            transition: 'all 0.2s',
+            minWidth: 189,
+          }}
+        >
+          <div style={{ fontSize: 19, fontWeight: showAccidents ? 700 : 500, display: 'flex', alignItems: 'center', gap: 9 }}>
+            {ta('label')}
+            {!accidentsLoaded && (
+              <span style={{
+                width: 9, height: 9, borderRadius: '50%',
+                background: '#ffaa22', display: 'inline-block', flexShrink: 0,
+                boxShadow: '0 0 4px #ffaa2288',
+                animation: 'tg-blink 1s ease-in-out infinite',
+              }} />
+            )}
+          </div>
+          <div style={{ fontSize: 16, opacity: !accidentsLoaded ? 0.3 : 0.65, marginTop: 3 }}>{ta('sub')}</div>
+        </button>
       </div>
 
       {/* Traffic panel — top right */}
@@ -248,6 +282,7 @@ export default function TrafficDashboard() {
           selectedTg={selectedTg}
           daily={daily}
           dataInfo={dataInfo}
+          showAccidents={showAccidents}
         />
       </div>
 
@@ -278,6 +313,31 @@ export default function TrafficDashboard() {
             <span style={{ fontSize: 16, color: '#3a6888' }}>{label}</span>
           </div>
         ))}
+
+        <div style={{ borderTop: '1px solid rgba(90,170,220,0.1)', marginTop: 10, paddingTop: 10 }}>
+          <div style={{ fontSize: 16, color: '#2a5878', marginBottom: 9, letterSpacing: 1 }}>{tl('accidentTitle')}</div>
+          {([
+            [5,  '3건',   '소'],
+            [8,  '~8건',  '중'],
+            [12, '15건+', '대'],
+          ] as const).map(([size, label]) => (
+            <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+              <span style={{
+                width: 24, height: 24,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <span style={{
+                  width: size, height: size, borderRadius: '50%',
+                  background: '#ff4422',
+                  boxShadow: '0 0 6px #ff442266',
+                  display: 'inline-block',
+                }} />
+              </span>
+              <span style={{ fontSize: 16, color: '#3a6888' }}>{label}</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       {/* Toggle */}

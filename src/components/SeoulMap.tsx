@@ -338,11 +338,13 @@ const KOREA_BOUNDS: maplibregl.LngLatBoundsLike = [[124.0, 32.5], [132.5, 39.5]]
 // ── Component ────────────────────────────────────────────────────────────────
 interface Props {
   onInteractionChange?: (active: boolean) => void;
-  linkSpeeds?: Record<string, number>; // linkId  → avgSpd  (real-time, 56 links)
-  roadSpeeds?: Record<string, number>; // roadName → avgSpd  (daily stats, all named roads)
+  linkSpeeds?: Record<string, number>;
+  roadSpeeds?: Record<string, number>;
+  showAccidents?: boolean;
+  onAccidentsLoaded?: () => void;
 }
 
-export default function SeoulMap({ onInteractionChange, linkSpeeds, roadSpeeds }: Props) {
+export default function SeoulMap({ onInteractionChange, linkSpeeds, roadSpeeds, showAccidents = true, onAccidentsLoaded }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const mapRef        = useRef<maplibregl.Map | null>(null);
   const mapReadyRef   = useRef(false);
@@ -352,6 +354,14 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, roadSpeeds }
 
   useEffect(() => { linkSpeedsRef.current = linkSpeeds; }, [linkSpeeds]);
   useEffect(() => { roadSpeedsRef.current = roadSpeeds; }, [roadSpeeds]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReadyRef.current) return;
+    const vis = showAccidents ? 'visible' : 'none';
+    if (map.getLayer('accident-glow')) map.setLayoutProperty('accident-glow', 'visibility', vis);
+    if (map.getLayer('accident-dot'))  map.setLayoutProperty('accident-dot',  'visibility', vis);
+  }, [showAccidents]);
 
   function applyTraffic(
     map: maplibregl.Map,
@@ -480,6 +490,91 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, roadSpeeds }
           'line-opacity': SPEED_OPACITY_EXPR(0.85),
         },
       }, labelLayerId);
+
+      // ── Accident hotspots ─────────────────────────────────────────────
+      map.addSource('accident-hotspots', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      });
+
+      map.addLayer({
+        id: 'accident-glow',
+        type: 'circle',
+        source: 'accident-hotspots',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'],
+            10, ['interpolate', ['linear'], ['get', 'accidents'], 3, 6, 15, 14],
+            15, ['interpolate', ['linear'], ['get', 'accidents'], 3, 12, 15, 28],
+          ],
+          'circle-color': '#ff2200',
+          'circle-opacity': 0.25,
+          'circle-blur': 1,
+        },
+      }, labelLayerId);
+
+      map.addLayer({
+        id: 'accident-dot',
+        type: 'circle',
+        source: 'accident-hotspots',
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'],
+            10, ['interpolate', ['linear'], ['get', 'accidents'], 3, 3, 15, 7],
+            15, ['interpolate', ['linear'], ['get', 'accidents'], 3, 5, 15, 14],
+          ],
+          'circle-color': '#ff4422',
+          'circle-opacity': 0.85,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#ff8866',
+          'circle-stroke-opacity': 0.6,
+        },
+      }, labelLayerId);
+
+      fetch('/api/accident-hotspots')
+        .then(r => r.json())
+        .then((body: unknown) => {
+          const src = map.getSource('accident-hotspots') as maplibregl.GeoJSONSource | undefined;
+          src?.setData(body as GeoJSON.FeatureCollection);
+          console.log(`[SeoulMap] accident hotspots loaded`);
+          onAccidentsLoaded?.();
+        })
+        .catch(console.error);
+
+      // ── Accident popup on hover ────────────────────────────────────────
+      const popup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 12,
+        className: 'accident-popup',
+      });
+
+      map.on('mouseenter', 'accident-dot', (e) => {
+        map.getCanvas().style.cursor = 'pointer';
+        const f = e.features?.[0];
+        if (!f) return;
+        const { name, district, accidents, casualties, deaths } = f.properties as {
+          name: string; district: string; accidents: number; casualties: number; deaths: number;
+        };
+        popup.setLngLat(e.lngLat).setHTML(`
+          <div style="font-family:system-ui;font-size:13px;color:#e8f4ff;line-height:1.6">
+            <div style="font-weight:700;font-size:14px;color:#ff8866;margin-bottom:6px">${name}</div>
+            <div style="color:#7aaabb;margin-bottom:4px">${district}</div>
+            <div style="display:flex;gap:16px;margin-top:6px">
+              <span>사고 <b style="color:#ffaa44">${accidents}건</b></span>
+              <span>사상 <b style="color:#ff8844">${casualties}명</b></span>
+              <span>사망 <b style="color:#ff4444">${deaths}명</b></span>
+            </div>
+          </div>
+        `).addTo(map);
+      });
+
+      map.on('mousemove', 'accident-dot', (e) => {
+        popup.setLngLat(e.lngLat);
+      });
+
+      map.on('mouseleave', 'accident-dot', () => {
+        map.getCanvas().style.cursor = '';
+        popup.remove();
+      });
 
       mapReadyRef.current = true;
 
