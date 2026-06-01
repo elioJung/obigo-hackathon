@@ -10,6 +10,8 @@ export const TIME_GROUPS = [
   { tg: 'TEST', color: '#9333ea' },
 ] as const;
 
+export const TG_COLOR = Object.fromEntries(TIME_GROUPS.map(g => [g.tg, g.color])) as Record<TgKey, string>;
+
 export type TgKey = typeof TIME_GROUPS[number]['tg'];
 
 interface Props {

@@ -147,12 +147,10 @@ export default function TrafficDashboard() {
     }
   }, [selectedTg]);
 
-  // linkSpeeds: live → TrafficInfo, TEST → cached testData, else → road-stats, null → none
-  const linkSpeeds = selectedTg === 'live'
-    ? liveTraffic?.linkSpeeds
-    : selectedTg === 'TEST'
-      ? testData ?? undefined
-      : (selectedTg ? historicalSpeeds : undefined);
+  let linkSpeeds: Record<string, number> | undefined;
+  if (selectedTg === 'live')       linkSpeeds = liveTraffic?.linkSpeeds;
+  else if (selectedTg === 'TEST')  linkSpeeds = testData ?? undefined;
+  else if (selectedTg)             linkSpeeds = historicalSpeeds;
 
   const handleInteractionChange = useCallback((active: boolean) => {
     clearTimeout(hideTimerRef.current);
@@ -239,7 +237,7 @@ export default function TrafficDashboard() {
           liveAvailable={liveTraffic !== null}
           liveLoading={liveLoading}
           loadedTgs={loadedTgs}
-          onSelect={setSelectedTg}
+          onSelect={(tg) => setSelectedTg(prev => prev === tg ? null : tg)}
         />
         <button
           data-no-drag

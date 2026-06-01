@@ -2,16 +2,8 @@
 
 import { useTranslations } from 'next-intl';
 import type { DailyData } from '@/lib/types';
-import type { TgKey } from './TimeGroupSelector';
+import { TG_COLOR, type TgKey } from './TimeGroupSelector';
 import { intensityToColor } from '@/lib/traffic';
-
-const TG_COLOR: Record<string, string> = {
-  live: '#4ade80',
-  T1:   '#ff8833',
-  T2:   '#88cc44',
-  T3:   '#ff5533',
-  TEST: '#9333ea',
-};
 
 const TG_RANGE: Record<string, [number, number]> = {
   T1: [7, 9], T2: [10, 16], T3: [17, 19],

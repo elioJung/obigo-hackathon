@@ -339,21 +339,17 @@ const KOREA_BOUNDS: maplibregl.LngLatBoundsLike = [[124.0, 32.5], [132.5, 39.5]]
 interface Props {
   onInteractionChange?: (active: boolean) => void;
   linkSpeeds?: Record<string, number>;
-  roadSpeeds?: Record<string, number>;
   showAccidents?: boolean;
   onAccidentsLoaded?: () => void;
 }
 
-export default function SeoulMap({ onInteractionChange, linkSpeeds, roadSpeeds, showAccidents = true, onAccidentsLoaded }: Props) {
+export default function SeoulMap({ onInteractionChange, linkSpeeds, showAccidents = true, onAccidentsLoaded }: Props) {
   const containerRef  = useRef<HTMLDivElement>(null);
   const mapRef        = useRef<maplibregl.Map | null>(null);
   const mapReadyRef   = useRef(false);
   const networkRef    = useRef<GeoJSON.FeatureCollection | null>(null);
   const linkSpeedsRef = useRef(linkSpeeds);
-  const roadSpeedsRef = useRef(roadSpeeds);
-
   useEffect(() => { linkSpeedsRef.current = linkSpeeds; }, [linkSpeeds]);
-  useEffect(() => { roadSpeedsRef.current = roadSpeeds; }, [roadSpeeds]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -367,50 +363,28 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, roadSpeeds, 
     map: maplibregl.Map,
     network: GeoJSON.FeatureCollection | null | undefined,
     ls: Record<string, number> | undefined,
-    rs: Record<string, number> | undefined,
   ) {
     if (!network?.features?.length) return;
     const src = map.getSource('traffic-links') as maplibregl.GeoJSONSource | undefined;
     if (!src) return;
 
     const hasLink = ls && Object.keys(ls).length > 0;
-    const hasRoad = rs && Object.keys(rs).length > 0;
-
     const features = network.features.map(f => {
-      const linkId   = f.properties!.linkId   as string;
-      const roadName = f.properties!.roadName as string;
-      let speed = -1;
-      if (hasLink && ls![linkId]   !== undefined) speed = ls![linkId];
-      else if (hasRoad && rs![roadName] !== undefined) speed = rs![roadName];
+      const linkId = f.properties!.linkId as string;
+      const speed  = hasLink && ls![linkId] !== undefined ? ls![linkId] : -1;
       return { ...f, properties: { ...f.properties, speed } };
     });
 
     src.setData({ ...network, features });
-
-    const withSpeed = features.filter(f => (f.properties!.speed as number) >= 0);
-    if (withSpeed.length > 0) {
-      const speeds = withSpeed.map(f => f.properties!.speed as number);
-      const min = Math.min(...speeds).toFixed(1);
-      const max = Math.max(...speeds).toFixed(1);
-      const avg = (speeds.reduce((a, b) => a + b, 0) / speeds.length).toFixed(1);
-      const jam  = speeds.filter(s => s < 30).length;
-      const slow = speeds.filter(s => s >= 30 && s < 50).length;
-      const free = speeds.filter(s => s >= 50).length;
-      console.log(
-        `[SeoulMap] ${withSpeed.length}/${features.length} links | ` +
-        `avg ${avg} km/h (${min}~${max}) | ` +
-        `혼잡 ${jam} / 서행 ${slow} / 원활 ${free}`
-      );
-    }
   }
 
   // Re-apply whenever speed data changes
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReadyRef.current || !networkRef.current) return;
-    applyTraffic(map, networkRef.current, linkSpeeds, roadSpeeds);
+    applyTraffic(map, networkRef.current, linkSpeeds);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [linkSpeeds, roadSpeeds]);
+  }, [linkSpeeds]);
 
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -534,7 +508,6 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, roadSpeeds, 
         .then((body: unknown) => {
           const src = map.getSource('accident-hotspots') as maplibregl.GeoJSONSource | undefined;
           src?.setData(body as GeoJSON.FeatureCollection);
-          console.log(`[SeoulMap] accident hotspots loaded`);
           onAccidentsLoaded?.();
         })
         .catch(console.error);
@@ -588,8 +561,7 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, roadSpeeds, 
             return;
           }
           networkRef.current = geojson;
-          console.log(`[SeoulMap] network ready: ${geojson.features.length} links`);
-          applyTraffic(map, geojson, linkSpeedsRef.current, roadSpeedsRef.current);
+          applyTraffic(map, geojson, linkSpeedsRef.current);
         })
         .catch(console.error);
     });

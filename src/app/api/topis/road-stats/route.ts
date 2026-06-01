@@ -30,8 +30,6 @@ function getAxisLinkMap(): Map<string, string[]> {
   }
 
   axisLinkMap = map;
-  const total = [...map.values()].reduce((s, v) => s + v.length, 0);
-  console.log(`[road-stats] axis-link map: ${map.size} axes, ${total} links`);
   return map;
 }
 
@@ -74,7 +72,6 @@ async function fetchDay(key: string, date: string) {
       const list: Record<string, string>[] = Array.isArray(body) ? body
         : body.list ?? body.items ?? body.data ?? [];
 
-      if (startRow === 1) console.log(`[road-stats] ${date} first page: ${list.length} rows`);
 
       for (const row of list) {
         const axisCd = row.axisCd?.trim() ?? '';
@@ -94,7 +91,6 @@ async function fetchDay(key: string, date: string) {
 
   if (total === 0) {
     cache[date] = null;
-    console.log(`[road-stats] ${date} no data`);
     return;
   }
 
@@ -113,7 +109,6 @@ async function fetchDay(key: string, date: string) {
   }
 
   cache[date] = result;
-  console.log(`[road-stats] ${date} done — ${total} rows → ${linked} link-speed entries, T0: ${Object.keys(result.T0).length} links`);
 }
 
 export async function GET(req: NextRequest) {

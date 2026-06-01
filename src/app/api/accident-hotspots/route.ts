@@ -50,6 +50,5 @@ export async function GET() {
   }
 
   cached = { type: 'FeatureCollection', features };
-  console.log(`[accident-hotspots] loaded ${features.length} points`);
   return NextResponse.json(cached);
 }
