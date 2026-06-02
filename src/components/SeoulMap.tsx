@@ -358,6 +358,12 @@ function districtSpeedColor(speed: number): string {
 }
 
 // ── Component ────────────────────────────────────────────────────────────────
+interface FocusedRoad {
+  roadName: string;
+  avgSpeed: number;
+  center: [number, number];
+}
+
 interface Props {
   onInteractionChange?: (active: boolean) => void;
   linkSpeeds?: Record<string, number>;
@@ -365,19 +371,22 @@ interface Props {
   onAccidentsLoaded?: () => void;
   districtRanking?: DistrictRank[];
   flyTarget?: [number, number] | null;
+  focusedRoad?: FocusedRoad | null;
 }
 
 export default function SeoulMap({
   onInteractionChange, linkSpeeds,
   showAccidents = false, onAccidentsLoaded,
-  districtRanking, flyTarget,
+  districtRanking, flyTarget, focusedRoad,
 }: Props) {
-  const containerRef     = useRef<HTMLDivElement>(null);
-  const mapRef           = useRef<maplibregl.Map | null>(null);
-  const mapReadyRef      = useRef(false);
-  const networkRef       = useRef<GeoJSON.FeatureCollection | null>(null);
-  const linkSpeedsRef    = useRef(linkSpeeds);
-  const showAccidentsRef = useRef(showAccidents);
+  const containerRef       = useRef<HTMLDivElement>(null);
+  const mapRef             = useRef<maplibregl.Map | null>(null);
+  const mapReadyRef        = useRef(false);
+  const networkRef         = useRef<GeoJSON.FeatureCollection | null>(null);
+  const linkSpeedsRef      = useRef(linkSpeeds);
+  const showAccidentsRef   = useRef(showAccidents);
+  const clickPopupRef      = useRef<maplibregl.Popup | null>(null);
+  const clickPopupOpenRef  = useRef(false);
 
   useEffect(() => { linkSpeedsRef.current    = linkSpeeds; },    [linkSpeeds]);
   useEffect(() => { showAccidentsRef.current = showAccidents; }, [showAccidents]);
@@ -399,6 +408,36 @@ export default function SeoulMap({
       pitch: 55,
     });
   }, [flyTarget]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    const popup = clickPopupRef.current;
+    if (!map || !mapReadyRef.current || !popup) return;
+
+    if (!focusedRoad) {
+      popup.remove();
+      return;
+    }
+
+    const { roadName, avgSpeed, center } = focusedRoad;
+    const label = avgSpeed < 20 ? '정체' : avgSpeed < 35 ? '서행' : avgSpeed < 55 ? '원활' : '쾌속';
+    const color = avgSpeed < 20 ? '#ff4422' : avgSpeed < 35 ? '#ff9900' : avgSpeed < 55 ? '#55bb55' : '#44aaff';
+
+    clickPopupOpenRef.current = true;
+    popup.setLngLat(center).setHTML(`
+      <div style="font-family:system-ui;padding:4px 2px;color:#e8f4ff;line-height:1.6">
+        <div style="font-weight:700;font-size:15px;color:#5aaadd;margin-bottom:8px">
+          ${roadName}
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:24px;font-weight:700;color:${color}">${avgSpeed}</span>
+          <span style="font-size:13px;color:${color}">km/h</span>
+          <span style="margin-left:2px;background:${color}22;border:1px solid ${color}55;color:${color};padding:2px 10px;border-radius:5px;font-size:12px">${label}</span>
+        </div>
+        <div style="color:#2a5878;font-size:12px;margin-top:6px">평균 속도 기준</div>
+      </div>
+    `).addTo(map);
+  }, [focusedRoad]);
 
   // 항상 25개 구 라벨 표시 — 데이터 없으면 기본 색, 있으면 혼잡도 색 + 속도
   useEffect(() => {
@@ -642,7 +681,18 @@ export default function SeoulMap({
         popup.remove();
       });
 
-      // ── Road link click popup ─────────────────────────────────────────
+      // ── 패널 클릭 팝업 (X버튼으로 닫기, 지도 클릭으로 닫기) ───────────
+      const clickPopup = new maplibregl.Popup({
+        closeButton: true,
+        closeOnClick: true,
+        offset: 12,
+        maxWidth: '260px',
+        className: 'accident-popup',
+      });
+      clickPopup.on('close', () => { clickPopupOpenRef.current = false; });
+      clickPopupRef.current = clickPopup;
+
+      // ── 호버 팝업 (마우스 올릴 때만, 클릭 팝업이 열려있으면 억제) ────
       const roadPopup = new maplibregl.Popup({
         closeButton: false,
         closeOnClick: false,
@@ -652,6 +702,7 @@ export default function SeoulMap({
       });
 
       map.on('mouseenter', 'tl-hit', (e) => {
+        if (clickPopupOpenRef.current) return;
         const f = e.features?.[0];
         if (!f) return;
         const { roadName, speed, maxSpd } = f.properties as {
@@ -680,12 +731,12 @@ export default function SeoulMap({
       });
 
       map.on('mousemove', 'tl-hit', (e) => {
-        roadPopup.setLngLat(e.lngLat);
+        if (!clickPopupOpenRef.current) roadPopup.setLngLat(e.lngLat);
       });
 
       map.on('mouseleave', 'tl-hit', () => {
         map.getCanvas().style.cursor = '';
-        roadPopup.remove();
+        if (!clickPopupOpenRef.current) roadPopup.remove();
       });
 
       // ── District congestion labels (custom GeoJSON centroids) ─────────

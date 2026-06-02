@@ -12,7 +12,7 @@ import { fetchSeoulTraffic, fetchDailyData } from '@/lib/traffic';
 import type { SeoulTrafficSummary, DailyData } from '@/lib/types';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useDistrictRanking } from '@/hooks/useDistrictRanking';
-import { useRoadRanking } from '@/hooks/useRoadRanking';
+import { useRoadRanking, type RoadRank } from '@/hooks/useRoadRanking';
 import activeLinksData from '@/data/active-links.json';
 
 function getKSTTime() {
@@ -44,7 +44,8 @@ export default function TrafficDashboard() {
   const [showAccidents, setShowAccidents]     = useState(false);
   const [accidentsLoaded, setAccidentsLoaded] = useState(false);
   const [testData, setTestData]     = useState<Record<string, number> | null>(null);
-  const [flyTarget, setFlyTarget]   = useState<[number, number] | null>(null);
+  const [flyTarget, setFlyTarget]     = useState<[number, number] | null>(null);
+  const [focusedRoad, setFocusedRoad] = useState<RoadRank | null>(null);
   const hideTimerRef   = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const speedsCacheRef = useRef<Map<string, { speeds: Record<string, number>; date: string }>>(new Map());
 
@@ -233,6 +234,7 @@ export default function TrafficDashboard() {
           onAccidentsLoaded={() => setAccidentsLoaded(true)}
           districtRanking={districtRanking?.all}
           flyTarget={flyTarget}
+          focusedRoad={focusedRoad}
         />
 
       {/* Title */}
@@ -371,7 +373,10 @@ export default function TrafficDashboard() {
           {topRoads && (
             <TopRoadsPanel
               roads={topRoads}
-              onRoadClick={center => setFlyTarget([...center])}
+              onRoadClick={road => {
+                setFlyTarget([...road.center]);
+                setFocusedRoad({ ...road });
+              }}
             />
           )}
           {districtRanking && (

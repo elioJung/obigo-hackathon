@@ -19,7 +19,7 @@ function congestionLabel(speed: number): string {
 
 interface Props {
   roads: RoadRank[];
-  onRoadClick?: (center: [number, number]) => void;
+  onRoadClick?: (road: RoadRank) => void;
   style?: React.CSSProperties;
 }
 
@@ -41,7 +41,7 @@ export default function TopRoadsPanel({ roads, onRoadClick, style }: Props) {
       {roads.map((r, i) => (
         <div
           key={r.roadName}
-          onClick={() => onRoadClick?.(r.center)}
+          onClick={() => onRoadClick?.(r)}
           style={{
             display: 'flex', alignItems: 'center',
             gap: 6, marginBottom: 6,
