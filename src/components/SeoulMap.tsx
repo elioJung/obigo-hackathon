@@ -523,7 +523,7 @@ export default function SeoulMap({
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': SPEED_COLOR_EXPR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 12, 15, 27, 18, 42],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 8, 15, 18, 18, 28],
           'line-blur': 7,
           'line-opacity': SPEED_OPACITY_EXPR(0.35),
         },
@@ -536,9 +536,20 @@ export default function SeoulMap({
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': SPEED_COLOR_EXPR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 15, 5, 18, 10.5],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.5, 15, 3.5, 18, 7],
           'line-blur': 0.5,
           'line-opacity': SPEED_OPACITY_EXPR(0.85),
+        },
+      }, labelLayerId);
+
+      // Wide transparent hit area for hover — visually invisible, only for interaction
+      map.addLayer({
+        id: 'tl-hit',
+        type: 'line', source: 'traffic-links',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: {
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 20, 15, 32, 18, 48],
+          'line-opacity': 0,
         },
       }, labelLayerId);
 
@@ -640,7 +651,7 @@ export default function SeoulMap({
         className: 'accident-popup',
       });
 
-      map.on('mouseenter', 'tl-line', (e) => {
+      map.on('mouseenter', 'tl-hit', (e) => {
         const f = e.features?.[0];
         if (!f) return;
         const { roadName, speed, maxSpd } = f.properties as {
@@ -668,11 +679,11 @@ export default function SeoulMap({
         `).addTo(map);
       });
 
-      map.on('mousemove', 'tl-line', (e) => {
+      map.on('mousemove', 'tl-hit', (e) => {
         roadPopup.setLngLat(e.lngLat);
       });
 
-      map.on('mouseleave', 'tl-line', () => {
+      map.on('mouseleave', 'tl-hit', () => {
         map.getCanvas().style.cursor = '';
         roadPopup.remove();
       });
