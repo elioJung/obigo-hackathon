@@ -364,12 +364,13 @@ interface Props {
   showAccidents?: boolean;
   onAccidentsLoaded?: () => void;
   districtRanking?: DistrictRank[];
+  flyTarget?: [number, number] | null;
 }
 
 export default function SeoulMap({
   onInteractionChange, linkSpeeds,
   showAccidents = false, onAccidentsLoaded,
-  districtRanking,
+  districtRanking, flyTarget,
 }: Props) {
   const containerRef     = useRef<HTMLDivElement>(null);
   const mapRef           = useRef<maplibregl.Map | null>(null);
@@ -388,6 +389,16 @@ export default function SeoulMap({
     if (map.getLayer('accident-glow')) map.setLayoutProperty('accident-glow', 'visibility', vis);
     if (map.getLayer('accident-dot'))  map.setLayoutProperty('accident-dot',  'visibility', vis);
   }, [showAccidents]);
+
+  useEffect(() => {
+    if (!flyTarget || !mapRef.current || !mapReadyRef.current) return;
+    mapRef.current.flyTo({
+      center: flyTarget,
+      zoom: Math.max(mapRef.current.getZoom(), 14),
+      duration: 1400,
+      pitch: 55,
+    });
+  }, [flyTarget]);
 
   // 항상 25개 구 라벨 표시 — 데이터 없으면 기본 색, 있으면 혼잡도 색 + 속도
   useEffect(() => {
@@ -512,7 +523,7 @@ export default function SeoulMap({
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': SPEED_COLOR_EXPR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 8, 15, 18, 18, 28],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 12, 15, 27, 18, 42],
           'line-blur': 7,
           'line-opacity': SPEED_OPACITY_EXPR(0.35),
         },
@@ -525,7 +536,7 @@ export default function SeoulMap({
         layout: { 'line-cap': 'round', 'line-join': 'round' },
         paint: {
           'line-color': SPEED_COLOR_EXPR,
-          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.5, 15, 3.5, 18, 7],
+          'line-width': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 15, 5, 18, 10.5],
           'line-blur': 0.5,
           'line-opacity': SPEED_OPACITY_EXPR(0.85),
         },
@@ -618,6 +629,52 @@ export default function SeoulMap({
       map.on('mouseleave', 'accident-dot', () => {
         map.getCanvas().style.cursor = '';
         popup.remove();
+      });
+
+      // ── Road link click popup ─────────────────────────────────────────
+      const roadPopup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 12,
+        maxWidth: '260px',
+        className: 'accident-popup',
+      });
+
+      map.on('mouseenter', 'tl-line', (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        const { roadName, speed, maxSpd } = f.properties as {
+          roadName: string; speed: number; maxSpd: number;
+        };
+        if (speed < 0) return;
+
+        map.getCanvas().style.cursor = 'pointer';
+
+        const label = speed < 20 ? '정체' : speed < 35 ? '서행' : speed < 55 ? '원활' : '쾌속';
+        const color = speed < 20 ? '#ff4422' : speed < 35 ? '#ff9900' : speed < 55 ? '#55bb55' : '#44aaff';
+
+        roadPopup.setLngLat(e.lngLat).setHTML(`
+          <div style="font-family:system-ui;padding:4px 2px;color:#e8f4ff;line-height:1.6">
+            <div style="font-weight:700;font-size:15px;color:#5aaadd;margin-bottom:8px">
+              ${roadName || '이름 없는 도로'}
+            </div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:24px;font-weight:700;color:${color}">${speed}</span>
+              <span style="font-size:13px;color:${color}">km/h</span>
+              <span style="margin-left:2px;background:${color}22;border:1px solid ${color}55;color:${color};padding:2px 10px;border-radius:5px;font-size:12px">${label}</span>
+            </div>
+            <div style="color:#2a5878;font-size:12px;margin-top:6px">제한속도 ${maxSpd} km/h</div>
+          </div>
+        `).addTo(map);
+      });
+
+      map.on('mousemove', 'tl-line', (e) => {
+        roadPopup.setLngLat(e.lngLat);
+      });
+
+      map.on('mouseleave', 'tl-line', () => {
+        map.getCanvas().style.cursor = '';
+        roadPopup.remove();
       });
 
       // ── District congestion labels (custom GeoJSON centroids) ─────────

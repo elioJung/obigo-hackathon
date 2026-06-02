@@ -7,10 +7,12 @@ import TrafficPanel from './TrafficPanel';
 import TimeGroupSelector, { type TgKey } from './TimeGroupSelector';
 import IntroVideo from './IntroVideo';
 import DistrictRankingPanel from './DistrictRankingPanel';
+import TopRoadsPanel from './TopRoadsPanel';
 import { fetchSeoulTraffic, fetchDailyData } from '@/lib/traffic';
 import type { SeoulTrafficSummary, DailyData } from '@/lib/types';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { useDistrictRanking } from '@/hooks/useDistrictRanking';
+import { useRoadRanking } from '@/hooks/useRoadRanking';
 import activeLinksData from '@/data/active-links.json';
 
 function getKSTTime() {
@@ -41,7 +43,8 @@ export default function TrafficDashboard() {
   const [isHidden, setIsHidden]             = useState(false);
   const [showAccidents, setShowAccidents]     = useState(false);
   const [accidentsLoaded, setAccidentsLoaded] = useState(false);
-  const [testData, setTestData] = useState<Record<string, number> | null>(null);
+  const [testData, setTestData]     = useState<Record<string, number> | null>(null);
+  const [flyTarget, setFlyTarget]   = useState<[number, number] | null>(null);
   const hideTimerRef   = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const speedsCacheRef = useRef<Map<string, { speeds: Record<string, number>; date: string }>>(new Map());
 
@@ -160,6 +163,7 @@ export default function TrafficDashboard() {
   else if (selectedTg)             linkSpeeds = historicalSpeeds;
 
   const districtRanking = useDistrictRanking(linkSpeeds);
+  const topRoads        = useRoadRanking(linkSpeeds);
 
 
   const handleInteractionChange = useCallback((active: boolean) => {
@@ -228,6 +232,7 @@ export default function TrafficDashboard() {
           showAccidents={showAccidents}
           onAccidentsLoaded={() => setAccidentsLoaded(true)}
           districtRanking={districtRanking?.all}
+          flyTarget={flyTarget}
         />
 
       {/* Title */}
@@ -356,16 +361,25 @@ export default function TrafficDashboard() {
         </div>
       </div>
 
-      {/* 구별 혼잡도 랭킹 — 하단 중앙 */}
-      {districtRanking && (
+      {/* 하단 중앙 — 막히는 도로 TOP5 + 구별 혼잡도 나란히 */}
+      {(topRoads || districtRanking) && (
         <div style={{
           ...overlayStyle,
           position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', gap: 12, alignItems: 'flex-start',
         }}>
-          <DistrictRankingPanel
-            congested={districtRanking.congested}
-            smooth={districtRanking.smooth}
-          />
+          {topRoads && (
+            <TopRoadsPanel
+              roads={topRoads}
+              onRoadClick={center => setFlyTarget([...center])}
+            />
+          )}
+          {districtRanking && (
+            <DistrictRankingPanel
+              congested={districtRanking.congested}
+              smooth={districtRanking.smooth}
+            />
+          )}
         </div>
       )}
 
