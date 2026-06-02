@@ -6,9 +6,11 @@ import SeoulMap from './SeoulMap';
 import TrafficPanel from './TrafficPanel';
 import TimeGroupSelector, { type TgKey } from './TimeGroupSelector';
 import IntroVideo from './IntroVideo';
+import DistrictRankingPanel from './DistrictRankingPanel';
 import { fetchSeoulTraffic, fetchDailyData } from '@/lib/traffic';
 import type { SeoulTrafficSummary, DailyData } from '@/lib/types';
 import { useIsMobile } from '@/hooks/useIsMobile';
+import { useDistrictRanking } from '@/hooks/useDistrictRanking';
 import activeLinksData from '@/data/active-links.json';
 
 function getKSTTime() {
@@ -25,7 +27,7 @@ function getKSTYesterday(): string {
 export default function TrafficDashboard() {
   const isMobile = useIsMobile();
   const [showIntro, setShowIntro] = useState(true);
-  const [selectedTg, setSelectedTg]     = useState<TgKey | null>(null);
+  const [selectedTg, setSelectedTg]       = useState<TgKey | null>(null);
   const [kstHour, setKstHour]           = useState(() => getKSTTime().hour);
   const [kstMinute, setKstMinute]       = useState(() => getKSTTime().minute);
   const [liveTraffic, setLiveTraffic]   = useState<SeoulTrafficSummary | null>(null);
@@ -39,9 +41,9 @@ export default function TrafficDashboard() {
   const [isHidden, setIsHidden]             = useState(false);
   const [showAccidents, setShowAccidents]     = useState(false);
   const [accidentsLoaded, setAccidentsLoaded] = useState(false);
-  const [testData, setTestData]           = useState<Record<string, number> | null>(null);
-  const hideTimerRef    = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const speedsCacheRef  = useRef<Map<string, { speeds: Record<string, number>; date: string }>>(new Map());
+  const [testData, setTestData] = useState<Record<string, number> | null>(null);
+  const hideTimerRef   = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const speedsCacheRef = useRef<Map<string, { speeds: Record<string, number>; date: string }>>(new Map());
 
   // KST clock
   useEffect(() => {
@@ -157,6 +159,9 @@ export default function TrafficDashboard() {
   else if (selectedTg === 'TEST')  linkSpeeds = testData ?? undefined;
   else if (selectedTg)             linkSpeeds = historicalSpeeds;
 
+  const districtRanking = useDistrictRanking(linkSpeeds);
+
+
   const handleInteractionChange = useCallback((active: boolean) => {
     clearTimeout(hideTimerRef.current);
     if (active) {
@@ -217,7 +222,13 @@ export default function TrafficDashboard() {
 
       {/* Main app - renders immediately to start loading in background */}
       <div style={{ width: '100vw', height: '100vh', position: 'relative', overflow: 'hidden' }}>
-        <SeoulMap onInteractionChange={handleInteractionChange} linkSpeeds={linkSpeeds} showAccidents={showAccidents} onAccidentsLoaded={() => setAccidentsLoaded(true)} />
+        <SeoulMap
+          onInteractionChange={handleInteractionChange}
+          linkSpeeds={linkSpeeds}
+          showAccidents={showAccidents}
+          onAccidentsLoaded={() => setAccidentsLoaded(true)}
+          districtRanking={districtRanking?.all}
+        />
 
       {/* Title */}
       <div style={{
@@ -276,6 +287,7 @@ export default function TrafficDashboard() {
           </div>
           <div style={{ fontSize: 16, opacity: !accidentsLoaded ? 0.3 : 0.65, marginTop: 3 }}>{ta('sub')}</div>
         </button>
+
       </div>
 
       {/* Traffic panel — top right */}
@@ -343,6 +355,19 @@ export default function TrafficDashboard() {
           ))}
         </div>
       </div>
+
+      {/* 구별 혼잡도 랭킹 — 하단 중앙 */}
+      {districtRanking && (
+        <div style={{
+          ...overlayStyle,
+          position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+        }}>
+          <DistrictRankingPanel
+            congested={districtRanking.congested}
+            smooth={districtRanking.smooth}
+          />
+        </div>
+      )}
 
       {/* Toggle */}
       <button

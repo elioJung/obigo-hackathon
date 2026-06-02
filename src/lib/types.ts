@@ -36,3 +36,9 @@ export interface SimVehicle {
   speed: number;            // progress per second
   color: [number, number, number]; // RGB 0..1
 }
+
+export interface DistrictRank {
+  district: string;
+  avgSpeed: number;
+  linkCount: number;
+}

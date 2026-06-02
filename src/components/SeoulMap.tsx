@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import maplibregl, { type StyleSpecification } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
+import type { DistrictRank } from '@/lib/types';
 
 const SEOUL_CENTER: [number, number] = [126.9780, 37.5665];
 const MAPTILER_KEY = process.env.NEXT_PUBLIC_MAPTILER_KEY ?? '';
@@ -250,24 +251,6 @@ function buildStyle(key: string): StyleSpecification {
 
       // ── Labels ────────────────────────────────────────────────────────────
       {
-        id: 'label-city',
-        type: 'symbol',
-        source: 'v', 'source-layer': 'place',
-        filter: ['in', 'class', 'city', 'state'],
-        layout: {
-          'text-field': ['coalesce', ['get', 'name:ko'], ['get', 'name']],
-          'text-font': ['Open Sans Bold'],
-          'text-size': ['interpolate', ['linear'], ['zoom'], 8, 13, 14, 22],
-          'text-anchor': 'center',
-          'text-allow-overlap': false,
-        },
-        paint: {
-          'text-color': '#5aaadd',
-          'text-halo-color': '#06090f',
-          'text-halo-width': 2,
-        },
-      },
-      {
         id: 'label-town',
         type: 'symbol',
         source: 'v', 'source-layer': 'place',
@@ -335,15 +318,59 @@ const SPEED_OPACITY_EXPR = (base: number): maplibregl.ExpressionSpecification =>
 
 const KOREA_BOUNDS: maplibregl.LngLatBoundsLike = [[124.0, 32.5], [132.5, 39.5]];
 
+const SEOUL_CITY_CENTER: [number, number] = [126.978, 37.555];
+
+// ── Seoul district centroids (approximate centers for labels) ─────────────
+const DISTRICT_CENTERS: Record<string, [number, number]> = {
+  '강남구':   [127.062, 37.517],
+  '강동구':   [127.137, 37.543],
+  '강북구':   [127.030, 37.642],
+  '강서구':   [126.849, 37.557],
+  '관악구':   [126.944, 37.478],
+  '광진구':   [127.082, 37.546],
+  '구로구':   [126.863, 37.497],
+  '금천구':   [126.900, 37.457],
+  '노원구':   [127.079, 37.654],
+  '도봉구':   [127.047, 37.668],
+  '동대문구': [127.050, 37.575],
+  '동작구':   [126.964, 37.512],
+  '마포구':   [126.909, 37.563],
+  '서대문구': [126.939, 37.578],
+  '서초구':   [127.033, 37.484],
+  '성동구':   [127.041, 37.554],
+  '성북구':   [127.020, 37.606],
+  '송파구':   [127.112, 37.514],
+  '양천구':   [126.869, 37.527],
+  '영등포구': [126.911, 37.527],
+  '용산구':   [126.991, 37.532],
+  '은평구':   [126.930, 37.618],
+  '종로구':   [126.982, 37.590],
+  '중구':     [126.998, 37.563],
+  '중랑구':   [127.092, 37.593],
+};
+
+function districtSpeedColor(speed: number): string {
+  if (speed < 20) return '#ff4422';
+  if (speed < 30) return '#ff9900';
+  if (speed < 40) return '#ddcc00';
+  if (speed < 55) return '#55bb55';
+  return '#44aaff';
+}
+
 // ── Component ────────────────────────────────────────────────────────────────
 interface Props {
   onInteractionChange?: (active: boolean) => void;
   linkSpeeds?: Record<string, number>;
   showAccidents?: boolean;
   onAccidentsLoaded?: () => void;
+  districtRanking?: DistrictRank[];
 }
 
-export default function SeoulMap({ onInteractionChange, linkSpeeds, showAccidents = false, onAccidentsLoaded }: Props) {
+export default function SeoulMap({
+  onInteractionChange, linkSpeeds,
+  showAccidents = false, onAccidentsLoaded,
+  districtRanking,
+}: Props) {
   const containerRef     = useRef<HTMLDivElement>(null);
   const mapRef           = useRef<maplibregl.Map | null>(null);
   const mapReadyRef      = useRef(false);
@@ -351,7 +378,7 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, showAccident
   const linkSpeedsRef    = useRef(linkSpeeds);
   const showAccidentsRef = useRef(showAccidents);
 
-  useEffect(() => { linkSpeedsRef.current = linkSpeeds; }, [linkSpeeds]);
+  useEffect(() => { linkSpeedsRef.current    = linkSpeeds; },    [linkSpeeds]);
   useEffect(() => { showAccidentsRef.current = showAccidents; }, [showAccidents]);
 
   useEffect(() => {
@@ -361,6 +388,42 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, showAccident
     if (map.getLayer('accident-glow')) map.setLayoutProperty('accident-glow', 'visibility', vis);
     if (map.getLayer('accident-dot'))  map.setLayoutProperty('accident-dot',  'visibility', vis);
   }, [showAccidents]);
+
+  // 항상 25개 구 라벨 표시 — 데이터 없으면 기본 색, 있으면 혼잡도 색 + 속도
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReadyRef.current) return;
+    const src = map.getSource('district-overlay') as maplibregl.GeoJSONSource | undefined;
+    if (!src) return;
+
+    const speedByDistrict: Record<string, number> = {};
+    if (districtRanking) {
+      for (const r of districtRanking) speedByDistrict[r.district] = r.avgSpeed;
+    }
+
+    const features: GeoJSON.Feature[] = [
+      {
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: SEOUL_CITY_CENTER },
+        properties: { name: '서울특별시', speedLabel: '', color: '#3d7a99', isCity: true },
+      },
+      ...Object.entries(DISTRICT_CENTERS).map(([district, coords]) => {
+        const speed = speedByDistrict[district];
+        return {
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: coords },
+          properties: {
+            name:       district,
+            speedLabel: speed != null ? `${speed}km/h` : '',
+            color:      speed != null ? districtSpeedColor(speed) : '#3d7a99',
+            isCity:     false,
+          },
+        };
+      }),
+    ];
+
+    src.setData({ type: 'FeatureCollection', features });
+  }, [districtRanking]);
 
   function applyTraffic(
     map: maplibregl.Map,
@@ -397,9 +460,9 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, showAccident
       style: MAPTILER_KEY
         ? buildStyle(MAPTILER_KEY)
         : 'https://tiles.openfreemap.org/styles/liberty/style.json',
-      center: SEOUL_CENTER,
-      zoom: 15,
-      pitch: 55,
+      center:  SEOUL_CENTER,
+      zoom:    15,
+      pitch:   55,
       bearing: -15,
       maxZoom: 20,
       minZoom: 8,
@@ -555,6 +618,97 @@ export default function SeoulMap({ onInteractionChange, linkSpeeds, showAccident
       map.on('mouseleave', 'accident-dot', () => {
         map.getCanvas().style.cursor = '';
         popup.remove();
+      });
+
+      // ── District congestion labels (custom GeoJSON centroids) ─────────
+      const defaultDistrictFeatures: GeoJSON.Feature[] = [
+        // 서울특별시 city label
+        {
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: SEOUL_CITY_CENTER },
+          properties: { name: '서울특별시', speedLabel: '', color: '#3d7a99', isCity: true },
+        },
+        // 25 districts
+        ...Object.entries(DISTRICT_CENTERS).map(([district, coords]) => ({
+          type: 'Feature' as const,
+          geometry: { type: 'Point' as const, coordinates: coords },
+          properties: { name: district, speedLabel: '', color: '#3d7a99', isCity: false },
+        })),
+      ];
+
+      map.addSource('district-overlay', {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: defaultDistrictFeatures },
+      });
+
+      // 서울특별시 city label — visible at lower zoom, very large
+      map.addLayer({
+        id: 'seoul-label',
+        type: 'symbol',
+        source: 'district-overlay',
+        filter: ['==', ['get', 'isCity'], true],
+        minzoom: 8,
+        maxzoom: 11,
+        layout: {
+          visibility: 'visible',
+          'text-field': ['get', 'name'],
+          'text-font': ['Open Sans Bold'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 8, 32, 11, 48],
+          'text-anchor': 'center',
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': ['get', 'color'],
+          'text-halo-color': '#06090f',
+          'text-halo-width': 3,
+        },
+      });
+
+      // District name labels
+      map.addLayer({
+        id: 'district-label',
+        type: 'symbol',
+        source: 'district-overlay',
+        filter: ['==', ['get', 'isCity'], false],
+        minzoom: 9,
+        layout: {
+          visibility: 'visible',
+          'text-field': ['get', 'name'],
+          'text-font': ['Open Sans Bold'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 9, 24, 14, 36],
+          'text-anchor': 'center',
+          'text-allow-overlap': false,
+          'text-max-width': 5,
+        },
+        paint: {
+          'text-color': ['get', 'color'],
+          'text-halo-color': '#06090f',
+          'text-halo-width': 2.5,
+        },
+      });
+
+      // Speed sub-label below district name
+      map.addLayer({
+        id: 'district-speed',
+        type: 'symbol',
+        source: 'district-overlay',
+        filter: ['==', ['get', 'isCity'], false],
+        minzoom: 10,
+        layout: {
+          visibility: 'visible',
+          'text-field': ['get', 'speedLabel'],
+          'text-font': ['Open Sans Regular'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 10, 18, 14, 26],
+          'text-anchor': 'top',
+          'text-offset': [0, 1.2],
+          'text-allow-overlap': false,
+        },
+        paint: {
+          'text-color': ['get', 'color'],
+          'text-halo-color': '#06090f',
+          'text-halo-width': 1.5,
+          'text-opacity': 0.85,
+        },
       });
 
       mapReadyRef.current = true;
