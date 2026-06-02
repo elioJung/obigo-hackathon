@@ -12,32 +12,33 @@ interface DistrictRankingResult {
 export function useDistrictRanking(
   linkSpeeds: Record<string, number> | undefined,
 ): DistrictRankingResult | null {
-  const [districtMap, setDistrictMap] = useState<Record<string, string>>({});
+  const [districtMap, setDistrictMap] = useState<Map<string, string>>(new Map());
 
   useEffect(() => {
     fetch('/api/link-districts')
       .then(r => r.json())
-      .then((data: unknown) => setDistrictMap(data as Record<string, string>))
+      .then((data: unknown) => setDistrictMap(new Map(Object.entries(data as Record<string, string>))))
       .catch(() => {});
   }, []);
 
   return useMemo(() => {
-    if (!linkSpeeds || Object.keys(districtMap).length === 0) return null;
+    if (!linkSpeeds || districtMap.size === 0) return null;
 
-    const buckets: Record<string, number[]> = {};
+    const buckets = new Map<string, number[]>();
     for (const [linkId, speed] of Object.entries(linkSpeeds)) {
       if (speed < 0) continue;
-      const district = districtMap[linkId];
+      const district = districtMap.get(linkId);
       if (!district) continue;
-      if (!buckets[district]) buckets[district] = [];
-      buckets[district].push(speed);
+      const existing = buckets.get(district);
+      if (existing) existing.push(speed);
+      else buckets.set(district, [speed]);
     }
 
-    const ranked = Object.entries(buckets)
+    const ranked = Array.from(buckets.entries())
       .filter(([, speeds]) => speeds.length >= 5)
       .map(([district, speeds]): DistrictRank => ({
         district,
-        avgSpeed: Math.round(speeds.reduce((s, v) => s + v, 0) / speeds.length),
+        avgSpeed:  Math.round(speeds.reduce((s, v) => s + v, 0) / speeds.length),
         linkCount: speeds.length,
       }))
       .sort((a, b) => a.avgSpeed - b.avgSpeed);

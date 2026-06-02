@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { getNodeMap, getLinkRows } from '@/lib/csv-data';
 
-// [minLng, minLat, maxLng, maxLat]
 const DISTRICT_BOUNDS: Record<string, [number, number, number, number]> = {
   '강남구':   [127.015, 37.490, 127.105, 37.545],
   '강동구':   [127.090, 37.510, 127.185, 37.575],
@@ -31,20 +29,19 @@ const DISTRICT_BOUNDS: Record<string, [number, number, number, number]> = {
   '중랑구':   [127.065, 37.565, 127.120, 37.620],
 };
 
+const DISTRICT_ENTRIES = Object.entries(DISTRICT_BOUNDS);
+
 function classifyPoint(lng: number, lat: number): string | null {
-  const candidates = Object.entries(DISTRICT_BOUNDS).filter(
+  const candidates = DISTRICT_ENTRIES.filter(
     ([, b]) => lng >= b[0] && lng <= b[2] && lat >= b[1] && lat <= b[3],
   );
   if (candidates.length === 0) return null;
   if (candidates.length === 1) return candidates[0][0];
 
-  // Multiple bbox matches → pick closest center
   let best = candidates[0][0];
   let bestDist = Infinity;
   for (const [name, b] of candidates) {
-    const cx = (b[0] + b[2]) / 2;
-    const cy = (b[1] + b[3]) / 2;
-    const d = (lng - cx) ** 2 + (lat - cy) ** 2;
+    const d = (lng - (b[0] + b[2]) / 2) ** 2 + (lat - (b[1] + b[3]) / 2) ** 2;
     if (d < bestDist) { bestDist = d; best = name; }
   }
   return best;
@@ -53,31 +50,12 @@ function classifyPoint(lng: number, lat: number): string | null {
 let cached: Record<string, string> | null = null;
 
 function buildLinkDistricts(): Record<string, string> {
-  const dir = join(process.cwd(), 'src', 'data');
-
-  const nodesRaw = readFileSync(join(dir, 'seoul-nodes.csv'), 'utf-8');
-  const nodeMap = new Map<string, [number, number]>();
-  for (const line of nodesRaw.split('\n').slice(1)) {
-    const c = line.split(',');
-    const nodeId = c[0]?.trim();
-    const lng = parseFloat(c[6]);
-    const lat = parseFloat(c[7]);
-    if (nodeId && !isNaN(lng) && !isNaN(lat)) nodeMap.set(nodeId, [lng, lat]);
-  }
-
-  const linksRaw = readFileSync(join(dir, 'seoul-links.csv'), 'utf-8');
+  const nodeMap = getNodeMap();
   const result: Record<string, string> = {};
 
-  for (const line of linksRaw.split('\n').slice(1)) {
-    if (!line.trim()) continue;
-    const c = line.split(',');
-    const linkId   = c[24]?.trim();
-    const stNodeId = c[1]?.trim();
-    if (!linkId || !stNodeId) continue;
-
+  for (const { linkId, stNodeId } of getLinkRows()) {
     const node = nodeMap.get(stNodeId);
     if (!node) continue;
-
     const district = classifyPoint(node[0], node[1]);
     if (district) result[linkId] = district;
   }

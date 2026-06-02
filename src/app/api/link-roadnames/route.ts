@@ -1,21 +1,13 @@
 import { NextResponse } from 'next/server';
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { getLinkRows } from '@/lib/csv-data';
 
 let cached: Record<string, string> | null = null;
 
 function buildLinkRoadNames(): Record<string, string> {
-  const raw = readFileSync(join(process.cwd(), 'src', 'data', 'seoul-links.csv'), 'utf-8');
   const result: Record<string, string> = {};
-
-  for (const line of raw.split('\n').slice(1)) {
-    if (!line.trim()) continue;
-    const c = line.split(',');
-    const linkId   = c[24]?.trim();
-    const roadName = c[9]?.trim();
-    if (linkId && roadName && roadName !== '-') result[linkId] = roadName;
+  for (const { linkId, roadName } of getLinkRows()) {
+    if (roadName && roadName !== '-') result[linkId] = roadName;
   }
-
   return result;
 }
 

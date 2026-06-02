@@ -3,50 +3,57 @@
 import { useState, useEffect, useMemo } from 'react';
 
 export interface RoadRank {
-  roadName: string;
-  avgSpeed: number;
+  roadName:  string;
+  avgSpeed:  number;
   linkCount: number;
-  center: [number, number];
+  center:    [number, number];
+}
+
+interface RoadMaps {
+  names:     Map<string, string>;
+  locations: Map<string, [number, number]>;
 }
 
 export function useRoadRanking(
   linkSpeeds: Record<string, number> | undefined,
 ): RoadRank[] | null {
-  const [roadNameMap,   setRoadNameMap]   = useState<Record<string, string>>({});
-  const [roadLocations, setRoadLocations] = useState<Record<string, [number, number]>>({});
+  const [roadMaps, setRoadMaps] = useState<RoadMaps | null>(null);
 
   useEffect(() => {
-    fetch('/api/link-roadnames')
-      .then(r => r.json())
-      .then((d: unknown) => setRoadNameMap(d as Record<string, string>))
-      .catch(() => {});
-    fetch('/api/road-locations')
-      .then(r => r.json())
-      .then((d: unknown) => setRoadLocations(d as Record<string, [number, number]>))
+    Promise.all([
+      fetch('/api/link-roadnames').then(r => r.json()),
+      fetch('/api/road-locations').then(r => r.json()),
+    ])
+      .then(([names, locations]) => setRoadMaps({
+        names:     new Map(Object.entries(names     as Record<string, string>)),
+        locations: new Map(Object.entries(locations as Record<string, [number, number]>)),
+      }))
       .catch(() => {});
   }, []);
 
   return useMemo(() => {
-    if (!linkSpeeds || Object.keys(roadNameMap).length === 0) return null;
+    if (!linkSpeeds || !roadMaps) return null;
+    const { names, locations } = roadMaps;
 
-    const buckets: Record<string, number[]> = {};
+    const buckets = new Map<string, number[]>();
     for (const [linkId, speed] of Object.entries(linkSpeeds)) {
       if (speed < 0) continue;
-      const roadName = roadNameMap[linkId];
+      const roadName = names.get(linkId);
       if (!roadName) continue;
-      if (!buckets[roadName]) buckets[roadName] = [];
-      buckets[roadName].push(speed);
+      const existing = buckets.get(roadName);
+      if (existing) existing.push(speed);
+      else buckets.set(roadName, [speed]);
     }
 
-    return Object.entries(buckets)
-      .filter(([name, speeds]) => speeds.length >= 3 && roadLocations[name])
+    return Array.from(buckets.entries())
+      .filter(([name, speeds]) => speeds.length >= 3 && locations.has(name))
       .map(([roadName, speeds]): RoadRank => ({
         roadName,
         avgSpeed:  Math.round(speeds.reduce((s, v) => s + v, 0) / speeds.length),
         linkCount: speeds.length,
-        center:    roadLocations[roadName],
+        center:    locations.get(roadName)!,
       }))
       .sort((a, b) => a.avgSpeed - b.avgSpeed)
       .slice(0, 5);
-  }, [linkSpeeds, roadNameMap, roadLocations]);
+  }, [linkSpeeds, roadMaps]);
 }

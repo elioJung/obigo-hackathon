@@ -41,18 +41,23 @@ export async function fetchSeoulTraffic(): Promise<SeoulTrafficSummary | null> {
     const rows = data?.TrafficInfo?.row ?? [];
     if (!rows.length) return null;
 
-    const links = rows.map(r => ({
-      linkId: r.LINK_ID,
-      speed: parseFloat(r.PRCS_SPD) || 30,
-      congestion: parseCongestion(parseFloat(r.PRCS_SPD) || 30),
-    }));
+    const linkSpeeds: Record<string, number> = {};
+    let sumSpeed = 0, smooth = 0, slow = 0;
 
-    const total = links.length;
-    const avgSpeed = Math.round(links.reduce((s, l) => s + l.speed, 0) / total);
-    const smoothPct    = Math.round(links.filter(l => l.congestion === 1).length / total * 100);
-    const slowPct      = Math.round(links.filter(l => l.congestion === 2).length / total * 100);
+    for (const r of rows) {
+      const speed = parseFloat(r.PRCS_SPD) || 30;
+      linkSpeeds[r.LINK_ID] = speed;
+      sumSpeed += speed;
+      const c = parseCongestion(speed);
+      if (c === 1) smooth++;
+      else if (c === 2) slow++;
+    }
+
+    const total        = rows.length;
+    const avgSpeed     = Math.round(sumSpeed / total);
+    const smoothPct    = Math.round(smooth / total * 100);
+    const slowPct      = Math.round(slow   / total * 100);
     const congestedPct = 100 - smoothPct - slowPct;
-    const linkSpeeds   = Object.fromEntries(links.map(l => [l.linkId, l.speed]));
 
     return { averageSpeed: avgSpeed, smoothPct, slowPct, congestedPct, fetchedAt: Date.now(), linkSpeeds };
   } catch {
