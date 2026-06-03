@@ -27,6 +27,10 @@ pnpm-debug.log*
 *.pem
 Thumbs.db
 
+# claude
+.claude/
+.agents/
+
 # vercel
 .vercel
 
